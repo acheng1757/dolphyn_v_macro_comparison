@@ -2,14 +2,13 @@ import os
 import re
 import pandas as pd
 
-
 # ---------------------------------------------------------------------
 # User inputs
 # ---------------------------------------------------------------------
 
-macro_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/macro"
+macro_base_dir = "/Users/abbie/MacroEnergy-Abbie.jl/MacroEnergyExamples/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Ethylene_Case/1 week/dolphyn"
-macro_results_folder = "results_002"
+macro_results_folder = "results_003"
 dolphyn_results_folder = "Results_1"
 scenario_names = ["Ethylene_Case"]
 
@@ -281,50 +280,66 @@ sector_definitions = {
 
     "Ethylene": {
     "categories": [
-        ("Thermal SC NGfuel", [
+        ("TSC NGfuel", [
             r"_F(-|_)NGin_ethylene",           # F-NGin without H2out (the underscore after prevents matching F-NGin-H2out)
-            r"_F(-|_)NGin_RETROFIT_ethylene",
             r"CSC_Plant",
             r"TSC",
+        ]),
+        ("Ret+TSC NGfuel", [
             r"Ret-TSC",
+            r"_F(-|_)NGin_RETROFIT_ethylene",
         ]),
-        ("Thermal SC NGfuel H2out", [
+        ("TSC NGfuel H2out", [
             r"_F(-|_)NGin(-|_)H2out_ethylene",
-            r"_F(-|_)NGin(-|_)H2out_RETROFIT_ethylene",  # in case separator varies
-            r"TSC:H2",
-            
+            r"TSC:H2",  
         ]),
-        ("Thermal SC CC90 NGfuel", [
+        ("Ret+TSC NGfuel H2out", [
+            r"_F(-|_)NGin(-|_)H2out_RETROFIT_ethylene",  # in case separator varies
+        ]),
+        ("TSC CC90 NGfuel", [
             r"_F(-|_)CC90(-|_)NGin_ethylene",
-            r"_F(-|_)CC90(-|_)NGin_RETROFIT_ethylene",
             r"TSC+CC90",
+        ]),
+        ("Ret+TSC CC90 NGfuel", [
+            r"_F(-|_)CC90(-|_)NGin_RETROFIT_ethylene",
             r"Ret-TSC+CC90",
         ]),
-        ("Thermal SC CC90 NGfuel H2out", [
+        ("TSC CC90 NGfuel H2out", [
             r"_F(-|_)CC90(-|_)NGin(-|_)H2out_ethylene",
-            r"_F(-|_)CC90(-|_)NGin(-|_)H2out_RETROFIT_ethylene",
             r"TSC+CC90:H2",
+        ]),
+        ("Ret+TSC CC90 NGfuel H2out", [
+            r"_F(-|_)CC90(-|_)NGin(-|_)H2out_RETROFIT_ethylene",
             r"Ret-TSC+CC90:H2",
         ]),
-        ("Thermal SC H2fuel", [
+        ("TSC H2fuel", [
             r"_F(-|_)H2in_ethylene",
-            r"_F(-|_)H2in_RETROFIT_ethylene",
             r"TSC+H2in",
         ]),
-        ("Thermal SC H2fuel CH4out", [
+        ("Ret+TSC H2fuel", [
+            r"_F(-|_)H2in_RETROFIT_ethylene",
+        ]),
+        ("TSC H2fuel CH4out", [
             r"_F(-|_)H2in(-|_)CH4out_ethylene",
-            r"_F(-|_)H2in(-|_)CH4out_RETROFIT_ethylene",
             r"TSC+H2in:CH4",
+        ]),
+        ("Ret+TSC H2fuel CH4out", [
+            r"_F(-|_)H2in(-|_)CH4out_RETROFIT_ethylene",
             r"RET-TSC+H2in:CH4",
         ]),
-        ("Thermal SC CC90 H2fuel", [
+        ("TSC CC90 H2fuel", [
             r"TSC+CC90+H2in",
+            r"Ret-TSC+CC90+H2in",
+        ]),
+        ("Ret+TSC CC90 H2fuel", [
             r"Ret-TSC+CC90+H2in",
         ]),
         ("Electric SC", [
             r"(-|_)F(-|_)Ein_ethylene",
-            r"(-|_)F(-|_)Ein_RETROFIT_ethylene",
             r"ESC",
+        ]),
+        ("Ret+Electric SC", [
+            r"(-|_)F(-|_)Ein_RETROFIT_ethylene",
             r"Ret-ESC",
         ]),
         ("Synthetic H2fuel", [

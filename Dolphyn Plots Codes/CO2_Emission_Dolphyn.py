@@ -3,25 +3,25 @@ import matplotlib.pyplot as plt
 import os
 import sys
 
+# AS OF SUNDAY MAY 10 THIS CODE DOES NOT FUNCTION FOR MY SPECIFIC CASE
+
 # ---------------------------------------------------------------------
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir
+from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, dolphyn_results_folder, scenario_names
 
 
 # List of scenario file paths and scenario names
-file_paths = [f'{dolphyn_base_dir}/Ethylene_Case/Results/Results_CSC/System_CO2_emission_balance.csv']
+file_paths = [f'{dolphyn_base_dir}/Ethylene_Case/{dolphyn_results_folder}/Results_CSC/Zone_CO2_emission_balance.csv']
               #f'{dolphyn_base_dir}/NineZones_High_Biomass_Low_CO2/Results/Results_CSC/System_CO2_emission_balance.csv',
               #f'{dolphyn_base_dir}/NineZones_Low_Biomass_High_CO2/Results/Results_CSC/System_CO2_emission_balance.csv',
              # f'{dolphyn_base_dir}/NineZones_Low_Biomass_Low_CO2/Results/Results_CSC/System_CO2_emission_balance.csv']  # Replace with your actual file paths
 
-scenario_names = ['Ethylene_Case'] #, 'HB-LS', 'LB-HS', 'LB-LS']
-
 # Columns of interest for summation
 columns_of_interest = ["Power Emissions", 
-                       "HSC Emissions", 
-                       "CSC Emissions", 
+                       "H2 Emissions", 
+                       "DAC Emissions", 
                        "Bio Elec Plant Emissions", 
                        "Biomass CO2 for Bio Elec", 
                        "Bio H2 Plant Emissions",
@@ -32,15 +32,20 @@ columns_of_interest = ["Power Emissions",
                        "Biomass CO2 for Bio NG", 
                        "Conventional NG", 
                        "Syn NG Plant Emissions", 
-                       "Syn NG", 
+                       "Synthetic NG", 
                        "Bio NG", 
-                       "Conventional Liquid Fuels", 
+                       #"Conventional Liquid Fuels", 
                        "Synfuel Plant Emissions", 
-                       "Synfuels", 
-                       "Biofuels", 
+                       #"Synfuels", 
+                       #"Biofuels", 
                        "NG Reduction from Power CCS", 
                        "NG Reduction from H2 CCS", 
-                       "NG Reduction from DAC CCS"]
+                       "NG Reduction from DAC CCS",
+                       "Ethylene Production",
+                       "Bio Ethanol Plant Emissions",
+                       "Biomass CO2 for Bio Ethanol",
+                       "Ethylene Combustion"
+                       ]
 
 
 # Conversion factor (example)
@@ -86,6 +91,7 @@ combine_mapping = {
     'Biomass CO2 for Bio H2': 'Biomass Capture',
     'Biomass CO2 for Bio LF': 'Biomass Capture',
     'Biomass CO2 for Bio NG': 'Biomass Capture',
+    "Biomass CO2 for Bio Ethanol" : 'Biomass Capture',
     
     'Bio Elec Plant Emissions': 'Biofuels process',
     'Bio H2 Plant Emissions': 'Biofuels process',
@@ -93,12 +99,16 @@ combine_mapping = {
     'Bio NG Plant Emissions': 'Biofuels process',
     'Biofuels': 'Biofuels process',
     'Bio NG': 'Biofuels processes',
+    "Bio Ethanol Plant Emissions": 'Biofuels processes',
     
     'Syn NG Plant Emissions': 'Synthetic NG and processes',
     'Syn NG': 'Synthetic NG and processes',
     
     'Synfuel Plant Emissions': 'Synthetic Fuels and processes',
     'Synfuels': 'Synthetic Fuels and processes',
+
+    "Ethylene Production" : "Ethylene Production",
+    "Ethylene Combustion" : "Ethylene End of Life"
 
 }
 
@@ -119,7 +129,9 @@ desired_order = [
     'Biofuels',
     'Biofuels process',
     'Power Sector',
-    'H2 Sector'
+    'H2 Sector',
+    "Ethylene Production",
+    "Ethylene End of Life"
 ]
 
 # Reorder the columns based on the desired order (only keep the matching columns)
@@ -136,7 +148,9 @@ category_colors = {
     'Synthetic Fuels and processes':'purple',
     'Synthetic NG and processes':'violet',
     'Biofuels':'seagreen',
-    'Biofuels process':'lightgreen'
+    'Biofuels process':'lightgreen',
+    'Ethylene Production':'#9b59b6',
+    'Ethylene End of Life':'#4a1a6e'
 }
 
 category_names = {
@@ -149,7 +163,9 @@ category_names = {
     'Synthetic Fuels and processes':'Synthetic Liquid Fuels',
     'Synthetic NG and processes':'Synthetic NG',
     'Biofuels process':'Bio Process Emissions',
-    'Biofuels':'Bio Liquid Fuels'
+    'Biofuels':'Bio Liquid Fuels',
+    'Ethylene Production':'Ethylene Production',
+    'Ethylene End of Life':'Ethylene End of Life'
 }
 
 plt.rcParams['font.family'] = 'Arial'

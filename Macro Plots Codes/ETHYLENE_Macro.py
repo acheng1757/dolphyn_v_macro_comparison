@@ -32,12 +32,19 @@ macro_scenario_paths = {
 # ---------------------------------------------------------------------
 
 desired_order = [
-    "Thermal SC NGfuel",
-    "Thermal SC CC90 NGfuel",
-    "Thermal SC NGfuel H2out",
-    "Thermal SC CC90 NGfuel H2out",
-    "Thermal SC H2fuel",
-    "Thermal SC H2fuel CH4out",
+    "TSC NGfuel",
+    "TSC CC90 NGfuel",
+    "TSC NGfuel H2out",
+    "TSC CC90 NGfuel H2out",
+    "TSC H2fuel",
+    "TSC H2fuel CH4out",
+    "Electric SC",
+    "Ret+TSC NGfuel",
+    "Ret+TSC CC90 NGfuel",
+    "Ret+TSC NGfuel H2out",
+    "Ret+TSC CC90 NGfuel H2out",
+    "Ret+TSC H2fuel",
+    "Ret+TSC H2fuel CH4out",
     "Electric SC",
     "Dehydration NGfuel",
     "Dehydration H2fuel",
@@ -47,33 +54,50 @@ desired_order = [
 ]
 
 category_colors = {
-    "Thermal SC NGfuel":              "#e8630a",   # vivid orange
-    "Thermal SC CC90 NGfuel":         "#7a2e0e",   # deep brick (CCS = darker)
-    "Thermal SC NGfuel H2out":        "#f5c518",   # bright gold
-    "Thermal SC CC90 NGfuel H2out":   "#a07c00",   # dark gold (CCS = darker)
-    "Thermal SC H2fuel":              "#3a8fd1",   # sky blue
-    "Thermal SC H2fuel CH4out":       "#1a4f80",   # navy blue (CH4 out = darker)
-    "Electric SC":                    "#18b4a0",
-    "Dehydration NGfuel":             "#57c46a",   # medium green
-    "Dehydration H2fuel":             "#1a6e30",   # dark green (H2 = darker)
-    "Synthetic H2fuel":               "#9b59b6",
-    "Synthetic CC90 H2fuel":          "#4a1a6e",   # deep purple (CCS = darker)
-    "Ethylene Demand":                "#5a6fa8",
+    # Base assets
+    "TSC NGfuel":                "#e8630a",   # vivid orange
+    "TSC CC90 NGfuel":           "#7a2e0e",   # deep brick (CCS = darker)
+    "TSC NGfuel H2out":          "#f5c518",   # bright gold
+    "TSC CC90 NGfuel H2out":     "#a07c00",   # dark gold (CCS = darker)
+    "TSC H2fuel":                "#3a8fd1",   # sky blue
+    "TSC H2fuel CH4out":         "#1a4f80",   # navy (CH4 out = darker)
+    "Electric SC":               "#18b4a0",   # teal
+    # Retrofit variants — lighter versions of their base
+    "Ret+TSC NGfuel":            "#f4a86a",   # light orange
+    "Ret+TSC CC90 NGfuel":       "#b5603a",   # mid brick
+    "Ret+TSC NGfuel H2out":      "#fae27a",   # light gold
+    "Ret+TSC CC90 NGfuel H2out": "#d4b840",   # mid gold
+    "Ret+TSC H2fuel":            "#85c4ec",   # light sky blue
+    "Ret+TSC H2fuel CH4out":     "#4a7faf",   # mid navy
+    # Dehydration
+    "Dehydration NGfuel":        "#57c46a",   # medium green
+    "Dehydration H2fuel":        "#1a6e30",   # dark green (H2 = darker)
+    # Synthetic
+    "Synthetic H2fuel":          "#9b59b6",   # purple
+    "Synthetic CC90 H2fuel":     "#4a1a6e",   # deep purple (CCS = darker)
+    # Demand
+    "Ethylene Demand":           "#5a6fa8",   # slate blue
 }
 
 label_map = {
-    "Thermal SC NGfuel":              "Thermal SC NGfuel",
-    "Thermal SC CC90 NGfuel":         "Thermal SC CC90 NGfuel",
-    "Thermal SC NGfuel H2out":        "Thermal SC NGfuel H2out",
-    "Thermal SC CC90 NGfuel H2out":   "Thermal SC CC90 NGfuel H2out",
-    "Thermal SC H2fuel":              "Thermal SC H2fuel",
-    "Thermal SC H2fuel CH4out":       "Thermal SC H2fuel CH4out",
-    "Electric SC":                    "Electric SC",
-    "Dehydration NGfuel":             "Dehydration NGfuel",
-    "Dehydration H2fuel":             "Dehydration H2fuel",
-    "Synthetic H2fuel":               "Synthetic H2fuel",
-    "Synthetic CC90 H2fuel":          "Synthetic CC90 H2fuel",
-    "Ethylene Demand":                "Ethylene Demand",
+    "TSC NGfuel":                "TSC NGfuel",
+    "TSC CC90 NGfuel":           "TSC CC90 NGfuel",
+    "TSC NGfuel H2out":          "TSC NGfuel H2out",
+    "TSC CC90 NGfuel H2out":     "TSC CC90 NGfuel H2out",
+    "TSC H2fuel":                "TSC H2fuel",
+    "TSC H2fuel CH4out":         "TSC H2fuel CH4out",
+    "Electric SC":               "Electric SC",
+    "Ret+TSC NGfuel":            "Ret+TSC NGfuel",
+    "Ret+TSC CC90 NGfuel":       "Ret+TSC CC90 NGfuel",
+    "Ret+TSC NGfuel H2out":      "Ret+TSC NGfuel H2out",
+    "Ret+TSC CC90 NGfuel H2out": "Ret+TSC CC90 NGfuel H2out",
+    "Ret+TSC H2fuel":            "Ret+TSC H2fuel",
+    "Ret+TSC H2fuel CH4out":     "Ret+TSC H2fuel CH4out",
+    "Dehydration NGfuel":        "Dehydration NGfuel",
+    "Dehydration H2fuel":        "Dehydration H2fuel",
+    "Synthetic H2fuel":          "Synthetic H2fuel",
+    "Synthetic CC90 H2fuel":     "Synthetic CC90 H2fuel",
+    "Ethylene Demand":           "Ethylene Demand",
 }
 
 # ---------------------------------------------------------------------

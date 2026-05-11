@@ -8,15 +8,13 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir
+from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, dolphyn_results_folder, scenario_names
 
 # List of scenario file paths and scenario names
-file_paths = [f'{dolphyn_base_dir}/Ethylene_Case/Results/Results_CSC/Zone_CO2_storage_balance.csv']
+file_paths = [f'{dolphyn_base_dir}/Ethylene_Case/{dolphyn_results_folder}/Results_CSC/Zone_CO2_storage_balance.csv']
               #f'{dolphyn_base_dir}/NineZones_High_Biomass_Low_CO2/Results/Results_CSC/Zone_CO2_storage_balance.csv',
               #f'{dolphyn_base_dir}/NineZones_Low_Biomass_High_CO2/Results/Results_CSC/Zone_CO2_storage_balance.csv',
               #f'{dolphyn_base_dir}/NineZones_Low_Biomass_Low_CO2/Results/Results_CSC/Zone_CO2_storage_balance.csv']  # Replace with your actual file paths
-
-scenario_names = ['Ethylene_Case'] #, 'HB-LS', 'LB-HS', 'LB-LS']
 
 # Columns of interest for summation
 columns_of_interest = ["DAC Capture",
@@ -30,7 +28,9 @@ columns_of_interest = ["DAC Capture",
                        "Syn NG Plant Consumption",
                        "NG Power CCS",
                        "NG DAC CCS",
-                       "CO2 Storage"]
+                       "CO2 Storage",
+                       "Ethylene Production",
+                       "Bio Ethanol Capture"]
 
 
 # Conversion factor (example: converting values to a different unit)
@@ -77,6 +77,9 @@ combine_mapping = {
     
     'Synfuel Plant Capture': 'Synthetic Fuels',
     'Synfuel Plant Consumption': 'Synthetic Fuels',
+
+    'Ethylene Production': 'Ethylene Capture',
+    'Bio Ethanol Capture': 'Bio Ethanol Capture',
 }
 
 # Apply the mapping to combine categories in the columns
@@ -93,7 +96,9 @@ desired_order = [
     'NG Power CCS',
     'NG H2 CCS',
     'DAC Capture',
-    'Biomass Capture'
+    'Biomass Capture',
+    'Ethylene Capture',
+    'Bio Ethanol Capture'
 ]
 
 # Reorder the columns based on the desired order (only keep the matching columns)
@@ -107,7 +112,9 @@ category_colors = {
     'NG H2 CCS':'deepskyblue',
     'Synthetic Fuels':'purple',
     'Synthetic NG':'violet',
-    'CO2 Storage':'darkgoldenrod'
+    'CO2 Storage':'darkgoldenrod',
+    'Ethylene Capture':'#9b59b6',
+    'Bio Ethanol Capture':'#f5c518'
     }
 
 category_names = {
@@ -118,6 +125,8 @@ category_names = {
     'NG H2 CCS':'H2 CCS',
     'DAC Capture':'DAC',
     'Biomass Capture':'Biofuel CCS',
+    'Ethylene Capture':'Ethylene CCS',
+    'Bio Ethanol Capture':'Bio Ethanol CCS',
 }
 
 import matplotlib.pyplot as plt
@@ -138,19 +147,20 @@ plt.ylabel('Scenario', fontsize=16)
 plt.title('Captured CO2 Balance (Mt)', fontsize=16)
 plt.yticks(fontsize=16)
 plt.xticks(fontsize=16)
-ax.set_xlim(-1250, 1250)
-ax.set_xticks([-1000, -500, 0, 500, 1000])
+#ax.set_xlim(-1250, 1250)
+ax.set_xlim(-100, 100) # smaller set for ethylene only case
+ax.set_xticks([-100, 0, 100])
 
 ax.axvline(x=0, color='black', linewidth=1, linestyle='--')
 ax.invert_yaxis()
 
 # Add small bar indicators for target values
 indicator_height = 0.2
-target_values = {'HB-HS': -865.8, 'HB-LS': -433.8, 'LB-HS': -865.8, 'LB-LS': -433.8}
-for i, scenario in enumerate(combined_data.index):
-    target_value = target_values.get(scenario, None)
-    if target_value is not None:
-        ax.barh(i, 20, height=indicator_height, color='black', alpha=0.8, left=target_value)
+#target_values = {'HB-HS': -865.8, 'HB-LS': -433.8, 'LB-HS': -865.8, 'LB-LS': -433.8}
+#for i, scenario in enumerate(combined_data.index):
+#    target_value = target_values.get(scenario, None)
+#    if target_value is not None:
+#        ax.barh(i, 20, height=indicator_height, color='black', alpha=0.8, left=target_value)
 
 # Custom legend
 handles, _ = ax.get_legend_handles_labels()
