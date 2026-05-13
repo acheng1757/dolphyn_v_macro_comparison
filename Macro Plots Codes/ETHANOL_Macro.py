@@ -22,7 +22,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "B5_HB_HS_11w": f"B5_HB_HS_11w/{macro_results_folder}/results",
+    "Ethanol_LF_Ethlyene_Case": f"Ethanol_LF_Ethlyene_Case/{macro_results_folder}/results",
 }
 
 # Ethylene flows in flows.csv are already in tonnes — no conversion needed.
@@ -32,111 +32,34 @@ macro_scenario_paths = {
 # ---------------------------------------------------------------------
 
 desired_order = [
-    "TSC",
-    "Ret-TSC",
-
-    "TSC+CC90",
-    "Ret-TSC+CC90",
-
-    "TSC:H2",
-    "Ret-TSC:H2",
-
-    "MS+MTO",
-
-    "MS+MTO+CC90",
-
-    "TSC+CC90:H2",
-    "Ret-TSC+CC90:H2",
-
-    "TSC+H2in",
-    "Ret-TSC+H2in",
-
-    "TSC+CC90+H2in",
-    "Ret-TSC+CC90+H2in",
-
-    "ESC",
-    "Ret-ESC",
-
-    "TSC+H2in:CH4",
-    "Ret-TSC+H2in:CH4",
-
-    "Existing Capacities",
-    "Dehydration NGfuel",
-    "Dehydration H2fuel",
-    "Ethylene Demand",
+    "DryMill_Existing_Non_CCS",
+    "DryMill_CCS_60_RETROFIT",
+    "DryMill_CCS_90_RETROFIT",
+    "DryMill_CCS_60",
+    "DryMill_CCS_90",
+    "Ethanol Demand",
 ]
 
 category_colors = {
-    "TSC":                  "#e8630a",   # vivid orange
-    "Ret-TSC":              "#f4a86a",   # light orange
-
-    "TSC+CC90":             "#7a2e0e",   # deep brick
-    "Ret-TSC+CC90":         "#b5603a",   # mid brick
-
-    "TSC:H2":               "#f5c518",   # bright gold (H2out co-product)
-    "Ret-TSC:H2":          "#fae27a",   # light gold
-
-    "MS+MTO":               "#9b59b6",   # purple (synthetic)
-    "MS+MTO+CC90":          "#4a1a6e",   # deep purple
-
-    "TSC+CC90:H2":          "#a07c00",   # dark gold (CC90 + H2out)
-    "Ret-TSC+CC90:H2":     "#d4b840",   # mid gold
-
-    "TSC+H2in":             "#3a8fd1",   # sky blue (H2fuel input)
-    "Ret-TSC+H2in":         "#85c4ec",   # light sky blue
-
-    "TSC+H2in:CH4":         "#1a4f80",   # navy (H2fuel + CH4out)
-    "Ret-TSC+H2in:CH4":     "#4a7faf",   # mid navy
-
-    "TSC+CC90+H2in":        "midnightblue",   # navy (CC90 + H2fuel) — same family
-    "Ret-TSC+CC90+H2in":    "navy",   # mid navy
-
-    "Existing Capacities":  "#cccccc",   # light gray
-    "ESC":              "#a0a0a0",   # mid gray
-    "Ret-ESC":              "#a0a0a0",   # mid gray
-
-    "Dehydration NGfuel":   "#57c46a",   # medium green
-    "Dehydration H2fuel":   "#1a6e30",   # dark green
-    "Ethylene Demand":      "#5a6fa8",   # slate blue
+    "DryMill_Existing_Non_CCS":                  "#e8630a",   # vivid orange
+    "DryMill_CCS_60_RETROFIT":                  "#e8630a",   # vivid orange
+    "DryMill_CCS_90_RETROFIT":                  "#e8630a",   # vivid orange
+    "DryMill_CCS_60":                  "#e8630a",   # vivid orange
+    "DryMill_CCS_90":                  "#e8630a",   # vivid orange
+    "Ethanol Demand":      "#5a6fa8",   # slate blue
 }
 
 label_map = {
-    "TSC":                  "TSC",
-    "Ret-TSC":              "Ret-TSC",
-
-    "TSC+CC90":             "TSC+CC90",
-    "Ret-TSC+CC90":         "Ret-TSC+CC90",
-
-    "TSC:H2":               "TSC:H2",
-    "Ret-TSC:H2":          "Ret-TSC:H2",
-
-    "MS+MTO":               "MS+MTO",
-    "MS+MTO+CC90":          "MS+MTO+CC90",
-
-    "TSC+CC90:H2":          "TSC+CC90:H2",
-    "Ret-TSC+CC90:H2":     "Ret-TSC+CC90:H2",
-
-    "TSC+H2in":             "TSC+H2in",
-    "Ret-TSC+H2in":         "Ret-TSC+H2in",
-
-    "TSC+CC90+H2in":        "TSC+CC90+H2in",
-    "Ret-TSC+CC90+H2in":    "Ret-TSC+CC90+H2in",
-
-    "TSC+H2in:CH4":         "TSC+H2in:CH4",
-    "Ret-TSC+H2in:CH4":     "Ret-TSC+H2in:CH4",
-
-    "Existing Capacities":  "Existing Capacities",
-
-    "Dehydration NGfuel":   "Dehydration NGfuel",
-    "Dehydration H2fuel":   "Dehydration H2fuel",
-    "Ethylene Demand":      "Ethylene Demand",
-
-    "ESC":                  "ESC",
-    "Ret-ESC":              "Ret-ESC", # confirm grouping
+    "DryMill_Existing_Non_CCS":                  "DryMill_Existing_Non_CCS",
+    "DryMill_CCS_60_RETROFIT":                  "DryMill_CCS_60_RETROFIT",
+    "DryMill_CCS_90_RETROFIT":                  "DryMill_CCS_90_RETROFIT",
+    "DryMill_CCS_60":                  "DryMill_CCS_60",
+    "DryMill_CCS_90":                  "DryMill_CCS_90",
+    "Ethanol Demand":      "Ethanol Demand",
 }
 
 # ---------------------------------------------------------------------
-# MACRO ethylene balance mapping
+# MACRO ethanol balance mapping
 # ---------------------------------------------------------------------
 '''
 def map_macro_ethylene_category(row):

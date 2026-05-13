@@ -7,7 +7,7 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
@@ -16,10 +16,7 @@ MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    "Ethylene_Case": f"Ethylene_Case/{macro_results_folder}/results",
 }
 
 

@@ -68,36 +68,36 @@ desired_order = [
 ]
 
 category_colors = {
-    "TSC":                  "#e8630a",
-    "Ret-TSC":              "#f4a86a",
+    "TSC":                  "#e8630a",   # vivid orange
+    "Ret-TSC":              "#f4a86a",   # light orange
 
-    "TSC+CC90":             "#7a2e0e",
-    "Ret-TSC+CC90":         "#b5603a",
+    "TSC+CC90":             "#7a2e0e",   # deep brick
+    "Ret-TSC+CC90":         "#b5603a",   # mid brick
 
-    "TSC:H2":               "#f5c518",
-    "Ret-TSC: H2":          "#fae27a",
+    "TSC:H2":               "#f5c518",   # bright gold (H2out co-product)
+    "Ret-TSC: H2":          "#fae27a",   # light gold
 
-    "MS+MTO":               "#e75480",
-    "MS+MTO+CC90":          "#8b0030",
+    "MS+MTO":               "#9b59b6",   # purple (synthetic)
+    "MS+MTO+CC90":          "#4a1a6e",   # deep purple
 
-    "TSC+CC90:H2":          "#a07c00",
-    "Ret-TSC+CC90: H2":     "#d4b840",
+    "TSC+CC90:H2":          "#a07c00",   # dark gold (CC90 + H2out)
+    "Ret-TSC+CC90: H2":     "#d4b840",   # mid gold
 
-    "TSC+H2in":             "#3a8fd1",
-    "Ret-TSC+H2in":         "#85c4ec",
+    "TSC+H2in":             "#3a8fd1",   # sky blue (H2fuel input)
+    "Ret-TSC+H2in":         "#85c4ec",   # light sky blue
 
-    "TSC+H2in:CH4":         "#1a4f80",   # darker blue — CH4 out variant of TSC+H2in
-    "Ret-TSC+H2in:CH4":     "#4a7faf",   # lighter version of above
+    "TSC+H2in:CH4":         "#1a4f80",   # navy (H2fuel + CH4out)
+    "Ret-TSC+H2in:CH4":     "#4a7faf",   # mid navy
 
-    "TSC+CC90+H2in":        "#1a4f80",
-    "Ret-TSC+CC90+H2in":    "#4a7faf",
+    "TSC+CC90+H2in":        "#1a4f80",   # navy (CC90 + H2fuel) — same family
+    "Ret-TSC+CC90+H2in":    "#4a7faf",   # mid navy
 
-    "Existing Capacities":  "#cccccc",
-    "Ret-ESC":              "#a0a0a0",   # slightly darker gray to distinguish from Existing
+    "Existing Capacities":  "#cccccc",   # light gray
+    "Ret-ESC":              "#a0a0a0",   # mid gray
 
-    "Dehydration NGfuel":   "#57c46a",
-    "Dehydration H2fuel":   "#1a6e30",
-    "Ethylene Demand":      "#5a6fa8",
+    "Dehydration NGfuel":   "#57c46a",   # medium green
+    "Dehydration H2fuel":   "#1a6e30",   # dark green
+    "Ethylene Demand":      "#5a6fa8",   # slate blue
 }
 
 label_map = {
@@ -358,14 +358,18 @@ print(combined_data)
 
 plot_df = combined_data.copy()
 
+# Only plot columns with non-zero values, in desired order
+active_cols = [col for col in desired_order if combined_data[col].abs().sum() > 0]
+
 fig, ax = plt.subplots(figsize=(5.2, 3.2))
 
-plot_df.plot(
+# Rename columns to label_map values so pandas legend uses display names
+plot_df[active_cols].rename(columns=label_map).plot(
     kind="barh",
     stacked=True,
     width=0.72,
     ax=ax,
-    color=[category_colors[col] for col in desired_order],
+    color=[category_colors[col] for col in active_cols],
 )
 
 ax.set_yticklabels(scenario_names, fontsize=14)
@@ -376,20 +380,6 @@ ax.tick_params(axis="x", labelsize=14)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 ax.invert_yaxis()
 
-# Custom legend
-handles, _ = ax.get_legend_handles_labels()
-custom_labels = [label_map[col] for col in desired_order]
-
-ax.legend(
-    handles,
-    custom_labels,
-    loc="upper center",
-    bbox_to_anchor=(0.5, -0.30),
-    ncol=2,
-    fontsize=11,
-    frameon=False,
-)
-
-plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.40)
-
+plt.subplots_adjust(left=0.20, right=0.98, top=0.92, bottom=0.0)
+plt.savefig("ethylene_balance.png", bbox_inches="tight", dpi=150)
 plt.show()

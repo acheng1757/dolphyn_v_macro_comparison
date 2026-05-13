@@ -7,24 +7,17 @@ import pandas as pd
 # ---------------------------------------------------------------------
 
 macro_base_dir = "/Users/abbie/MacroEnergy-Abbie.jl/MacroEnergyExamples/macro"
-dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Ethylene_Case/1 week/dolphyn"
-macro_results_folder = "results_003"
-dolphyn_results_folder = "Results_1"
-scenario_names = ["Ethylene_Case"]
+dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Ethylene_Case_5_13/dolphyn"
+macro_results_folder = "results_001"
+dolphyn_results_folder = "Results_2"
+scenario_names = ["B5_HB_HS_11w"]
 
 scenario_folders = [
-    f'Ethylene_Case/{macro_results_folder}/results',
-    #"NineZones_High_Biomass_Low_CO2/results_001/results",
-    #"NineZones_Low_Biomass_High_CO2/results_001/results",
-    #"NineZones_Low_Biomass_Low_CO2/results_001/results",
+    f'B5_HB_HS_11w/{macro_results_folder}/results',
 ]
 
 scenario_labels = {
-    f'Ethylene_Case/{macro_results_folder}/results': "Ethylene_Case",
-    #"Ethylene_Case/results_001/results": "High biomass\nHigh CO2",
-    #"NineZones_High_Biomass_Low_CO2/results_001/results": "High biomass\nLow CO2",
-    #"NineZones_Low_Biomass_High_CO2/results_001/results": "Low biomass\nHigh CO2",
-    #"NineZones_Low_Biomass_Low_CO2/results_001/results": "Low biomass\nLow CO2",
+    f'B5_HB_HS_11w/{macro_results_folder}/results': "B5_HB_HS_11w",
 }
 
 chunk_size = 50_000
@@ -255,7 +248,6 @@ sector_definitions = {
             ]),
         ],
     },
-
     "Synthetic fuels": {
         "categories": [
             ("S-J", [
@@ -277,23 +269,18 @@ sector_definitions = {
             ]),
         ],
     },
-
     "Ethylene": {
     "categories": [
-        ("TSC NGfuel", [
+        ("TSC", [
             r"_F(-|_)NGin_ethylene",           # F-NGin without H2out (the underscore after prevents matching F-NGin-H2out)
-            r"CSC_Plant",
-            r"TSC",
         ]),
-        ("Ret+TSC NGfuel", [
-            r"Ret-TSC",
+        ("Ret-TSC", [
             r"_F(-|_)NGin_RETROFIT_ethylene",
         ]),
-        ("TSC NGfuel H2out", [
+        ("TSC:H2", [
             r"_F(-|_)NGin(-|_)H2out_ethylene",
-            r"TSC:H2",  
         ]),
-        ("Ret+TSC NGfuel H2out", [
+        ("Ret-TSC:H2", [
             r"_F(-|_)NGin(-|_)H2out_RETROFIT_ethylene",  # in case separator varies
         ]),
         ("TSC CC90 NGfuel", [
@@ -304,51 +291,38 @@ sector_definitions = {
             r"_F(-|_)CC90(-|_)NGin_RETROFIT_ethylene",
             r"Ret-TSC+CC90",
         ]),
-        ("TSC CC90 NGfuel H2out", [
+        ("TSC+CC90:H2", [
             r"_F(-|_)CC90(-|_)NGin(-|_)H2out_ethylene",
-            r"TSC+CC90:H2",
         ]),
-        ("Ret+TSC CC90 NGfuel H2out", [
+        ("Ret-TSC+CC90:H2", [
             r"_F(-|_)CC90(-|_)NGin(-|_)H2out_RETROFIT_ethylene",
-            r"Ret-TSC+CC90:H2",
         ]),
-        ("TSC H2fuel", [
+        ("TSC+H2in", [
             r"_F(-|_)H2in_ethylene",
-            r"TSC+H2in",
         ]),
-        ("Ret+TSC H2fuel", [
+        ("Ret-TSC+H2in", [
             r"_F(-|_)H2in_RETROFIT_ethylene",
         ]),
-        ("TSC H2fuel CH4out", [
+        ("TSC+H2in:CH4", [
             r"_F(-|_)H2in(-|_)CH4out_ethylene",
             r"TSC+H2in:CH4",
         ]),
-        ("Ret+TSC H2fuel CH4out", [
+        ("Ret-TSC+H2in:CH4", [
             r"_F(-|_)H2in(-|_)CH4out_RETROFIT_ethylene",
             r"RET-TSC+H2in:CH4",
         ]),
-        ("TSC CC90 H2fuel", [
-            r"TSC+CC90+H2in",
-            r"Ret-TSC+CC90+H2in",
-        ]),
-        ("Ret+TSC CC90 H2fuel", [
-            r"Ret-TSC+CC90+H2in",
-        ]),
-        ("Electric SC", [
+        ("ESC", [
             r"(-|_)F(-|_)Ein_ethylene",
             r"ESC",
         ]),
-        ("Ret+Electric SC", [
+        ("Ret-ESC", [
             r"(-|_)F(-|_)Ein_RETROFIT_ethylene",
-            r"Ret-ESC",
         ]),
-        ("Synthetic H2fuel", [
+        ("MS+MTO", [
             r"_S(-|_)H2in_ethylene",           # S-H2in without CC90
-            r"MS+MTO",
         ]),
-        ("Synthetic CC90 H2fuel", [
+        ("MS+MTO+CC90", [
             r"_S(-|_)CC90(-|_)H2in_ethylene",
-            r"MS+MTO+CC90",
         ]),
         ("Dehydration NGfuel", [
             r"_B(-|_)NGin_ethylene",
@@ -358,6 +332,34 @@ sector_definitions = {
             r"_B(-|_)H2in_ethylene",
             r"Bio-eth+CC88:H2",
         ])
+    ],
+},
+"Ethanol": {
+    "categories": [
+        ("DryMill_CCS_60_RETROFIT", [       # must come before DryMill_CCS_60
+            r"_DryMill_CCS_60_RETROFIT",
+        ]),
+        ("DryMill_CCS_90_RETROFIT", [       # must come before DryMill_CCS_90
+            r"_DryMill_CCS_90_RETROFIT",
+        ]),
+        ("DryMill_Existing_Non_CCS", [
+            r"_DryMill_Existing_Non_CCS",
+        ]),
+        ("DryMill_CCS_60", [               # safe now — RETROFIT already caught above
+            r"_DryMill_CCS_60",
+        ]),
+        ("DryMill_CCS_90", [               # add this if you have it
+            r"_DryMill_CCS_90",
+        ]),
+        ("Bio_Ethanol_CCS_20", [           # must come before plain Bio_Ethanol_
+            r"_Bio_Ethanol_CCS_20",
+        ]),
+        ("Bio_Ethanol_CCS_86", [           # must come before plain Bio_Ethanol_
+            r"_Bio_Ethanol_CCS_86",
+        ]),
+        ("Bio_Ethanol_Non_CCS", [          # catch-all for plain bio ethanol — last
+            r"_Bio_Ethanol_(?!CCS)",       # negative lookahead to be extra safe
+        ]),
     ],
 },
 }
@@ -635,6 +637,11 @@ def compute_annual_demand_rows(demand_path, time_weights_path, scenario, scenari
         if c.lower().startswith("ethylene_")
     ]
 
+    ethanol_cols = [
+        c for c in demand.columns
+        if c.lower().startswith("ethanol_")
+    ]
+
     if len(electricity_cols) == 0:
         print(f"  Warning: no electricity demand columns found in {demand_path}")
 
@@ -642,6 +649,9 @@ def compute_annual_demand_rows(demand_path, time_weights_path, scenario, scenari
         print(f"  Warning: no hydrogen demand columns found in {demand_path}")
 
     if len(ethylene_cols) == 0:
+        print(f"  Warning: no ethylene demand columns found in {demand_path}")
+
+    if len(ethanol_cols) == 0:
         print(f"  Warning: no ethylene demand columns found in {demand_path}")
 
     rows = []
@@ -686,6 +696,12 @@ def compute_annual_demand_rows(demand_path, time_weights_path, scenario, scenari
         ethylene_cols,
         balance_name="Ethylene",
         category_name="Ethylene Demand",
+    )
+
+    add_demand_rows(
+        ethanol_cols,
+        balance_name="Ethanol",
+        category_name="Ethanol Demand",
     )
 
     return pd.DataFrame(
@@ -1140,6 +1156,97 @@ def add_balance_labels(df):
     )
     df.loc[is_ethylene_ethylene, "Balance"] = "Ethylene"
 
+    is_ethylene_ethanol_consumption = (
+        is_ethylene &
+        edge_lower.str.contains("ethanol_consumption_edge", na=False)
+        )
+    df.loc[is_ethylene_ethanol_consumption, "Balance"] = "Ethanol"
+
+# -----------------------------------------------------------------
+# Ethanol sector
+# -----------------------------------------------------------------
+
+    is_ethanol = sector_lower == "ethanol"
+
+    is_lf_ethanol_consumption = (
+            is_ethanol &
+            edge_lower.str.contains("ethanol_consumption_edge", na=False)
+        )
+    df.loc[is_lf_ethanol_consumption, "Balance"] = "Ethanol"
+
+    is_ethanol_ethanol_production = (
+        is_ethanol &
+        edge_lower.str.contains("ethanol_production_edge", na=False)
+    )
+    df.loc[is_ethanol_ethanol_production, "Balance"] = "Ethanol"
+
+    is_ethanol_biomass = (
+        is_ethanol &
+        edge_lower.str.contains("biomass_consumption_edge", na=False)
+    )
+    df.loc[is_ethanol_biomass, "Balance"] = "Biomass"
+
+    is_ethanol_power_consumption = (
+        is_ethanol &
+        edge_lower.str.contains("elec_consumption_edge", na=False)
+    )
+    df.loc[is_ethanol_power_consumption, "Balance"] = "Power"
+
+    is_ethanol_power_production = (
+        is_ethanol &
+        edge_lower.str.contains("elec_production_edge", na=False)
+    )
+    df.loc[is_ethanol_power_production, "Balance"] = "Power"
+
+    # NG: consumption AND production (was duplicated before — now distinct names)
+    is_ethanol_ng_consumption = (
+        is_ethanol &
+        edge_lower.str.contains("natgas_consumption_edge", na=False)
+    )
+    df.loc[is_ethanol_ng_consumption, "Balance"] = "NG"
+
+    # H2: consumption AND production (same fix)
+    is_ethanol_h2_consumption = (
+        is_ethanol &
+        edge_lower.str.contains("h2_consumption_edge", na=False)
+    )
+    df.loc[is_ethanol_h2_consumption, "Balance"] = "H2"
+
+    is_ethanol_co2 = (
+        is_ethanol &
+        edge_lower.str.contains("co2_emission_edge", na=False)
+    )
+    df.loc[is_ethanol_co2, "Balance"] = "CO2"
+
+    is_ethanol_co2 = (
+        is_ethanol &
+        (
+            edge_lower.str.contains("co2_emission_edge", na=False) |
+            edge_lower.str.contains("co2_content_edge", na=False) |
+            edge_lower.str.contains("co2_edgedgee", na=False)
+        ) &
+        (~edge_lower.str.contains("captured", na=False))
+    )
+    df.loc[is_ethanol_co2, "Balance"] = "CO2"
+
+    is_ethanol_gasoline = (
+        is_ethanol &
+        edge_lower.str.contains("gasoline_production_edge", na=False)
+    )
+    df.loc[is_ethanol_gasoline, "Balance"] = "Gasoline"
+
+    is_ethanol_diesel = (
+        is_ethanol &
+        edge_lower.str.contains("diesel_production_edge", na=False)
+    )
+    df.loc[is_ethanol_diesel, "Balance"] = "Diesel"
+
+    is_ethanol_jetfuel = (
+        is_ethanol &
+        edge_lower.str.contains("jetfuel_production_edge", na=False)
+    )
+    df.loc[is_ethanol_jetfuel, "Balance"] = "JetFuel"
+
     return df
 
 
@@ -1351,6 +1458,20 @@ def process_macro_scenario(scenario):
         print("\n  Annual hydrogen demand rows:")
         print(
             demand_rows[demand_rows["Balance"] == "H2"][
+                ["Edge", "Annual_Flow"]
+            ].to_string(index=False)
+        )
+
+        print("\n  Annual ethylene demand rows:")
+        print(
+            demand_rows[demand_rows["Balance"] == "Ethylene"][
+                ["Edge", "Annual_Flow"]
+            ].to_string(index=False)
+        )
+
+        print("\n  Annual ethanol demand rows:")
+        print(
+            demand_rows[demand_rows["Balance"] == "Ethanol"][
                 ["Edge", "Annual_Flow"]
             ].to_string(index=False)
         )

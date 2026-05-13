@@ -7,6 +7,12 @@ import matplotlib.pyplot as plt
 import sys
 import re
 
+# ---------------------------------------------------------------------
+# Global settings
+# ---------------------------------------------------------------------
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_results_folder, dolphyn_results_folder, scenario_names
+
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
 
@@ -16,20 +22,11 @@ plt.rcParams["font.family"] = "Arial"
 # Paths and scenarios
 # ---------------------------------------------------------------------
 
-scenario_names = ["B5_HB_HS_11w"]
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir, macro_results_folder, dolphyn_results_folder
-
 dolphyn_scenario_paths = {
     "B5_HB_HS_11w": f'B5_HB_HS_11w/{dolphyn_results_folder}/Results_Ethylene',
 }
 
-macro_scenario_paths = {
-    "B5_HB_HS_11w": f'B5_HB_HS_11w/{macro_results_folder}/results',
-}
-
-# Ethylene flows are already in tonnes — no conversion needed for either model.
+# Ethylene_capacity.csv Annual_Ethylene_Production is in tonnes/year already.
 
 
 # ---------------------------------------------------------------------
@@ -39,7 +36,7 @@ macro_scenario_paths = {
 desired_order = [
     "TSC",
     "Ret-TSC",
-    "Existing TSC:H2",
+    "Existing Capacities",
 
     "TSC+CC90",
     "Ret-TSC+CC90",
@@ -95,8 +92,8 @@ category_colors = {
 
     "TSC+CC90+H2in":        "midnightblue",   # navy (CC90 + H2fuel) — same family
     "Ret-TSC+CC90+H2in":    "navy",   # mid navy
-
-    "Existing TSC:H2":  "#f5c518",   # light gray
+    
+    "Existing Capacities":  "#cccccc",   # light gray
     "ESC":              "#a0a0a0",   # mid gray
     "Ret-ESC":              "#a0a0a0",   # mid gray
 
@@ -130,7 +127,7 @@ label_map = {
     "TSC+H2in:CH4":         "TSC+H2in:CH4",
     "Ret-TSC+H2in:CH4":     "Ret-TSC+H2in:CH4",
 
-    "Existing TSC:H2":  "Existing TSC:H2",
+    "Existing Capacities":  "Existing Capacities",
 
     "Dehydration NGfuel":   "Dehydration NGfuel",
     "Dehydration H2fuel":   "Dehydration H2fuel",
@@ -141,8 +138,31 @@ label_map = {
 }
 
 # ---------------------------------------------------------------------
-# Dolphyn: load production from Ethylene_capacity.csv
+# Resource → plot category mapping
 # ---------------------------------------------------------------------
+"""
+# Resources that map to each plot category.
+# Based on actual Dolphyn Ethylene_capacity.csv resource names.
+THERMAL_RESOURCES   = {"CSC_Plant", "CSC_CCS_Plant"}
+ELECTRIC_RESOURCES  = {"ESC_Plant"}
+ETHANOL_RESOURCES   = {"Ethanol_Plant", "Ethanol_CCS_Plant"}
+SYNTHETIC_RESOURCES = {
+    "CO2_MS_MTO", "CO2_CTM_OCM", "CO2_DFT",
+    "CO2_HTeCO_SFT", "CO2_eCO_SFT", "CO2_eCH4_OCM",
+    "CO2_HTeCO_SeC2H4", "CO2_eCO_SeC2H4", "CO2_DeC2H4",
+}
+
+def categorize_ethylene_resource(resource):
+    if resource in THERMAL_RESOURCES:
+        return "Thermal Steam Cracker"
+    if resource in ELECTRIC_RESOURCES:
+        return "Electric Steam Cracker"
+    if resource in ETHANOL_RESOURCES:
+        return "Ethanol Dehydration"
+    if resource in SYNTHETIC_RESOURCES:
+        return "Synthetic Ethylene"
+    return None
+"""
 
 # used to categorize the label directly in the CSV
 RESOURCE_CATEGORY_MAP = {
@@ -159,14 +179,19 @@ RESOURCE_CATEGORY_MAP = {
     "TSC+H2in":            "TSC+H2in",
     "TSC+CC90+H2in":            "TSC+H2in:CH4",
     "ESC":            "ESC",
-    "Existing Capacities":            "Existing TSC:H2",
+    "Existing Capacities":            "Existing Capacities",
     "TSC+H2in:CH4":         "TSC+H2in:CH4",
     "TSC+H2in: CH4":         "TSC+H2in:CH4",
 }
 
 def categorize_ethylene_resource(resource):
+    print('resource: ', resource)
+    print('category: ', RESOURCE_CATEGORY_MAP.get(str(resource).strip(), None))
     return RESOURCE_CATEGORY_MAP.get(str(resource).strip(), None)
 
+# ---------------------------------------------------------------------
+# Load production from Ethylene_Balance.csv for EXISTING ASSETS + NEW BUILD ASSETS
+# ---------------------------------------------------------------------
 def load_ethylene_production(balance_path, scenario):
 
     df_raw = pd.read_csv(balance_path, index_col=0)
@@ -200,6 +225,9 @@ def load_ethylene_production(balance_path, scenario):
 
     return df[["Scenario", "Plot_Category", "Annual_Ethylene_Production"]]
 
+# ---------------------------------------------------------------------
+# Load production from Ethylene_Retrofit_Balance.csv for RETROFITTED ASSETS
+# ---------------------------------------------------------------------
 def load_ethylene_production_retrofit(balance_retrofit_path, scenario):
     """
     Read Ethylene_Retrofit_Balance.csv and return a DataFrame with columns:
@@ -243,8 +271,25 @@ def load_ethylene_production_retrofit(balance_retrofit_path, scenario):
     df["Scenario"] = scenario
     return df[["Scenario", "Plot_Category", "Annual_Ethylene_Production"]]
 
-def load_dolphyn_ethylene_demand(balance_path):
+# ---------------------------------------------------------------------
+# Load demand from Ethylene_Balance.csv
+# ---------------------------------------------------------------------
+
+def load_ethylene_demand(balance_path, scenario):
+    """
+    Read Ethylene_Balance.csv and return total annual ethylene demand
+    (summed across all zones) as a negative value in tonnes/year.
+
+    The file has a multi-row header:
+        Row 0: resource names (repeated per zone) — 'Ethylene Demand' marks demand cols
+        Row 1: zone numbers
+        Row 2: AnnualSum values
+        Row 3+: per-timestep values
+
+    Demand values in the file are already negative.
+    """
     df = pd.read_csv(balance_path, header=None)
+
     resource_row = df.iloc[0].tolist()
     annualsum_row = df[df.iloc[:, 0] == "AnnualSum"]
 
@@ -252,6 +297,7 @@ def load_dolphyn_ethylene_demand(balance_path):
         print(f"  Warning: no AnnualSum row found in {balance_path}")
         return 0.0
 
+    # Case-insensitive match on anything containing 'demand'
     demand_cols = [
         i for i, v in enumerate(resource_row)
         if "demand" in str(v).strip().lower()
@@ -274,11 +320,11 @@ def load_dolphyn_ethylene_demand(balance_path):
 
 
 # ---------------------------------------------------------------------
-# Dolphyn loading loop
+# Main loading loop
 # ---------------------------------------------------------------------
 
-dolphyn_production_tables = []
-dolphyn_demand_rows = []
+production_tables = []
+demand_rows = []
 
 for scen_short, scen_path in dolphyn_scenario_paths.items():
     results_dir = os.path.join(dolphyn_base_dir, scen_path)
@@ -293,33 +339,36 @@ for scen_short, scen_path in dolphyn_scenario_paths.items():
         print(f"Warning: Ethylene_Retrofit_Balance_newv.csv not found: {balance_retrofit_path}")
         continue
 
+    # Production
     prod_df = load_ethylene_production(balance_path, scen_short)
     prod_df_retrofit = load_ethylene_production_retrofit(balance_retrofit_path, scen_short)
-    dolphyn_production_tables.append(prod_df)
-    dolphyn_production_tables.append(prod_df_retrofit)
+    production_tables.append(prod_df)
+    production_tables.append(prod_df_retrofit)
 
-    demand_val = load_dolphyn_ethylene_demand(balance_path) if os.path.exists(balance_path) else 0.0
-    dolphyn_demand_rows.append({
-        "Scenario":                   scen_short,
-        "Plot_Category":              "Ethylene Demand",
+    # Demand
+    demand_val = load_ethylene_demand(balance_path, scen_short)
+    demand_rows.append({
+        "Scenario":    scen_short,
+        "Plot_Category": "Ethylene Demand",
         "Annual_Ethylene_Production": demand_val,
     })
 
-    print(f"  Dolphyn {scen_short}: production = "
+    print(f"  {scen_short}: total production = "
           f"{prod_df['Annual_Ethylene_Production'].sum():,.0f} t/yr, "
           f"demand = {demand_val:,.0f} t/yr")
-    
-    print(f"  Dolphyn {scen_short}: production = "
-          f"{prod_df_retrofit['Annual_Ethylene_Production'].sum():,.0f} t/yr, "
-          f"demand = {demand_val:,.0f} t/yr")
 
-if dolphyn_production_tables:
-    dolphyn_all = pd.concat(
-        dolphyn_production_tables + [pd.DataFrame(dolphyn_demand_rows)],
+# ---------------------------------------------------------------------
+# Aggregate
+# ---------------------------------------------------------------------
+
+if production_tables:
+    all_rows = pd.concat(
+        production_tables + [pd.DataFrame(demand_rows)],
         ignore_index=True,
     )
-    dolphyn_combined_data = (
-        dolphyn_all
+
+    combined_data = (
+        all_rows
         .groupby(["Scenario", "Plot_Category"])["Annual_Ethylene_Production"]
         .sum()
         .unstack()
@@ -328,292 +377,47 @@ if dolphyn_production_tables:
         .fillna(0.0)
     )
 else:
-    dolphyn_combined_data = pd.DataFrame(index=scenario_names)
+    combined_data = pd.DataFrame(index=scenario_names)
 
-
-# ---------------------------------------------------------------------
-# MACRO: load from annual_flows_balance_Ethylene.csv
-# ---------------------------------------------------------------------
-'''
-# takes in the raw labels and remaps to desired categories
-def map_macro_ethylene_category(row):
-    sector   = str(row.get("Sector",   "")).strip()
-    category = str(row.get("Category", "")).strip()
-    edge     = str(row.get("Edge",     "")).strip().lower()
-
-    if sector.lower() == "demand":
-        return "Ethylene Demand"
-
-    if sector.lower() == "ethylene":
-        if category == "Electric Steam Cracker":
-            return "Electric Steam Cracker"
-        if category == "Thermal Steam Cracker":
-            return "Thermal Steam Cracker"
-        if category == "Ethanol Dehydration":
-            return "Ethanol Dehydration"
-        if category == "Synthetic Ethylene":
-            return "Synthetic Ethylene"
-
-    # Fallback: infer from edge name
-    if "f_ein" in edge or "f-ein" in edge:
-        return "Electric Steam Cracker"
-    if any(x in edge for x in ["f_ngin", "f-ngin", "f_cc90", "f-cc90",
-                                 "f_h2in", "f-h2in"]):
-        return "Thermal Steam Cracker"
-    if any(x in edge for x in ["b_ngin", "b-ngin", "b_h2in", "b-h2in"]):
-        return "Ethanol Dehydration"
-    if any(x in edge for x in ["s_h2in", "s-h2in", "s_cc90", "s-cc90"]):
-        return "Synthetic Ethylene"
-
-    return None
-'''
-
-ETHYLENE_CATEGORIES = [
-    ("TSC", [
-            r"_F(-|_)NGin_ethylene",           # F-NGin without H2out (the underscore after prevents matching F-NGin-H2out)
-        ]),
-        ("Ret-TSC", [
-            r"_F(-|_)NGin_RETROFIT_ethylene",
-        ]),
-        ("TSC:H2", [
-            r"_F(-|_)NGin(-|_)H2out_ethylene",
-        ]),
-        ("Ret-TSC:H2", [
-            r"_F(-|_)NGin(-|_)H2out_RETROFIT_ethylene",  # in case separator varies
-        ]),
-        ("TSC CC90 NGfuel", [
-            r"_F(-|_)CC90(-|_)NGin_ethylene",
-            r"TSC+CC90",
-        ]),
-        ("Ret+TSC CC90 NGfuel", [
-            r"_F(-|_)CC90(-|_)NGin_RETROFIT_ethylene",
-            r"Ret-TSC+CC90",
-        ]),
-        ("TSC+CC90:H2", [
-            r"_F(-|_)CC90(-|_)NGin(-|_)H2out_ethylene",
-        ]),
-        ("Ret-TSC+CC90:H2", [
-            r"_F(-|_)CC90(-|_)NGin(-|_)H2out_RETROFIT_ethylene",
-        ]),
-        ("TSC+H2in", [
-            r"_F(-|_)H2in_ethylene",
-        ]),
-        ("Ret-TSC+H2in", [
-            r"_F(-|_)H2in_RETROFIT_ethylene",
-        ]),
-        ("TSC+H2in:CH4", [
-            r"_F(-|_)H2in(-|_)CH4out_ethylene",
-            r"TSC+H2in:CH4",
-        ]),
-        ("Ret-TSC+H2in:CH4", [
-            r"_F(-|_)H2in(-|_)CH4out_RETROFIT_ethylene",
-            r"RET-TSC+H2in:CH4",
-        ]),
-        ("ESC", [
-            r"(-|_)F(-|_)Ein_ethylene",
-            r"ESC",
-        ]),
-        ("Ret-ESC", [
-            r"(-|_)F(-|_)Ein_RETROFIT_ethylene",
-        ]),
-        ("MS+MTO", [
-            r"_S(-|_)H2in_ethylene",           # S-H2in without CC90
-        ]),
-        ("MS+MTO+CC90", [
-            r"_S(-|_)CC90(-|_)H2in_ethylene",
-        ]),
-        ("Dehydration NGfuel", [
-            r"_B(-|_)NGin_ethylene",
-            r"Bio-eth+CC88:NG",
-        ]),
-        ("Dehydration H2fuel", [
-            r"_B(-|_)H2in_ethylene",
-            r"Bio-eth+CC88:H2",
-        ])
-]
-
-# Pre-compile for performance
-_COMPILED_ETHYLENE_CATEGORIES = [
-    (label, [re.compile(pattern, re.IGNORECASE) for pattern in patterns])
-    for label, patterns in ETHYLENE_CATEGORIES
-]
-
-def map_macro_ethylene_category(row):
-    sector = str(row.get("Sector", "")).strip().lower()
-    edge   = str(row.get("Edge",   "")).strip()
-
-    if sector == "demand":
-        return "Ethylene Demand"
-
-    for label, compiled_patterns in _COMPILED_ETHYLENE_CATEGORIES:
-        if any(pat.search(edge) for pat in compiled_patterns):
-            return label
-
-    return None
-
-macro_eth_tables = []
-
-for scen_short, scen_path in macro_scenario_paths.items():
-    macro_eth_path = os.path.join(
-        macro_base_dir,
-        scen_path,
-        "annual_flow_results",
-        "balance_specific_flows",
-        "annual_flows_balance_Ethylene.csv",
-    )
-
-    if not os.path.exists(macro_eth_path):
-        print(f"Warning: MACRO ethylene balance file not found: {macro_eth_path}")
-        continue
-
-    macro_eth = pd.read_csv(macro_eth_path)
-    macro_eth.columns = macro_eth.columns.str.strip()
-
-    macro_eth["Annual_Flow"] = pd.to_numeric(
-        macro_eth["Annual_Flow"], errors="coerce"
-    ).fillna(0.0)
-
-    macro_eth["Scenario"] = scen_short
-
-    macro_eth["Plot_Category"] = macro_eth.apply(
-        map_macro_ethylene_category, axis=1
-    )
-
-    macro_eth = macro_eth[macro_eth["Plot_Category"].notna()].copy()
-    macro_eth_tables.append(macro_eth)
-
-    print(f"  MACRO {scen_short}: {len(macro_eth)} rows loaded")
-
-
-if macro_eth_tables:
-    macro_eth_combined = pd.concat(macro_eth_tables, ignore_index=True)
-    macro_combined_data = (
-        macro_eth_combined
-        .groupby(["Scenario", "Plot_Category"])["Annual_Flow"]
-        .sum()
-        .unstack()
-        .fillna(0.0)
-        .reindex(scenario_names)
-        .fillna(0.0)
-    )
-else:
-    macro_combined_data = pd.DataFrame(index=scenario_names)
-
-
-# ---------------------------------------------------------------------
-# Align columns for both models
-# ---------------------------------------------------------------------
-
+# Ensure all columns exist
 for col in desired_order:
-    if col not in dolphyn_combined_data.columns:
-        dolphyn_combined_data[col] = 0.0
-    if col not in macro_combined_data.columns:
-        macro_combined_data[col] = 0.0
+    if col not in combined_data.columns:
+        combined_data[col] = 0.0
 
-dolphyn_combined_data = (
-    dolphyn_combined_data.reindex(scenario_names).fillna(0.0)[desired_order]
-)
-macro_combined_data = (
-    macro_combined_data.reindex(scenario_names).fillna(0.0)[desired_order]
-)
+combined_data = combined_data[desired_order]
 
-print("\nDolphyn ethylene balance by scenario (t/yr):")
-print(dolphyn_combined_data)
-
-print("\nMACRO ethylene balance by scenario (t/yr):")
-print(macro_combined_data)
-
-
-# ---------------------------------------------------------------------
-# Build paired plotting table (same logic as LF paired plot)
-# ---------------------------------------------------------------------
-
-plot_rows  = []
-plot_index = []
-
-for scen in scenario_names:
-    plot_rows.append(dolphyn_combined_data.loc[scen, desired_order])
-    plot_index.append((scen, "Dolphyn"))
-
-    plot_rows.append(macro_combined_data.loc[scen, desired_order])
-    plot_index.append((scen, "MACRO"))
-
-plot_df = pd.DataFrame(plot_rows)
-plot_df.index = pd.MultiIndex.from_tuples(
-    plot_index, names=["Scenario", "Model"]
-)
-
-y_tick_labels = [
-    "D" if model == "Dolphyn" else "M"
-    for _, model in plot_df.index
-]
+print("\nDolphyn ethylene balance by scenario (tonnes/year):")
+print(combined_data)
 
 
 # ---------------------------------------------------------------------
 # Plot
 # ---------------------------------------------------------------------
 
-fig, ax = plt.subplots(figsize=(5.2, 4.4))
+plot_df = combined_data.copy()
 
-pair_gap   = 0.45
-bar_height = 0.72
+# Only plot columns with non-zero values, in desired order
+active_cols = [col for col in desired_order if combined_data[col].abs().sum() > 0]
 
-bar_positions = []
-for i in range(len(scenario_names)):
-    base = i * (2 + pair_gap)
-    bar_positions.extend([base, base + 1])
+fig, ax = plt.subplots(figsize=(5.2, 3.2))
 
-plot_df.plot(
+# Rename columns to label_map values so pandas legend uses display names
+plot_df[active_cols].rename(columns=label_map).plot(
     kind="barh",
     stacked=True,
-    width=bar_height,
+    width=0.72,
     ax=ax,
-    color=[category_colors[col] for col in desired_order],
+    color=[category_colors[col] for col in active_cols],
 )
 
-# Reposition bars to create gaps between scenario pairs
-for container in ax.containers:
-    for patch, y in zip(container.patches, bar_positions):
-        patch.set_y(y - bar_height / 2)
-        patch.set_height(bar_height)
-
-ax.set_yticks(bar_positions)
-ax.set_yticklabels(y_tick_labels, fontsize=14)
-
+ax.set_yticklabels(scenario_names, fontsize=14)
 ax.set_ylabel("")
 ax.set_title("Ethylene Balance (t/yr)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
+ax.invert_yaxis()
 
-# Scenario labels to the left of each D/M pair
-for i, scen in enumerate(scenario_names):
-    y_mid = i * (2 + pair_gap) + 0.5
-    ax.text(
-        -0.16,
-        y_mid,
-        scen,
-        transform=ax.get_yaxis_transform(),
-        ha="right",
-        va="center",
-        fontsize=14,
-    )
-
-ax.set_ylim(max(bar_positions) + 0.8, -0.8)
-
-handles, _ = ax.get_legend_handles_labels()
-custom_labels = [label_map[col] for col in desired_order]
-
-ax.legend(
-    handles,
-    custom_labels,
-    loc="upper center",
-    bbox_to_anchor=(0.5, -0.28),
-    ncol=2,
-    fontsize=11,
-    frameon=False,
-)
-
-plt.subplots_adjust(left=0.24, right=0.98, top=0.88, bottom=0.40)
-
+plt.subplots_adjust(left=0.20, right=0.98, top=0.92, bottom=0.12)
+plt.savefig("ethylene_balance.png", bbox_inches="tight", dpi=150)
 plt.show()
