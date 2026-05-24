@@ -23,7 +23,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 dolphyn_scenario_paths = {
-    "B5_HB_HS_11w": f'B5_HB_HS_11w/{dolphyn_results_folder}/Results_Ethylene',
+    "new_11w_test": f'new_11w_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 # Ethylene_capacity.csv Annual_Ethylene_Production is in tonnes/year already.

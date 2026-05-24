@@ -6,18 +6,18 @@ import pandas as pd
 # User inputs
 # ---------------------------------------------------------------------
 
-macro_base_dir = "/Users/abbie/MacroEnergy-Abbie.jl/MacroEnergyExamples/macro"
-dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Ethylene_Case_5_13/dolphyn"
+macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
+dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 macro_results_folder = "results_001"
-dolphyn_results_folder = "Results_2"
-scenario_names = ["B5_HB_HS_11w"]
+dolphyn_results_folder = "Results_1"
+scenario_names = ["new_11w_test"]
 
 scenario_folders = [
-    f'B5_HB_HS_11w/{macro_results_folder}/results',
+    f'new_11w_test/{macro_results_folder}/results',
 ]
 
 scenario_labels = {
-    f'B5_HB_HS_11w/{macro_results_folder}/results': "B5_HB_HS_11w",
+    f'new_11w_test/{macro_results_folder}/results': "new_11w_test",
 }
 
 chunk_size = 50_000
