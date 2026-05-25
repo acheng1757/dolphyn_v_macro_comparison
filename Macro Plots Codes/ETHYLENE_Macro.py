@@ -22,7 +22,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "new_11w_test": f"new_11w_test/{macro_results_folder}/results",
+    "ethylene_only_test": f"ethylene_only_test/{macro_results_folder}/results",
 }
 
 # Ethylene flows in flows.csv are already in tonnes — no conversion needed.

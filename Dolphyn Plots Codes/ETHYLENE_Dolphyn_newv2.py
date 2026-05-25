@@ -11,7 +11,7 @@ import re
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_results_folder, dolphyn_results_folder, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, dolphyn_results_folder, scenario_names
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -23,7 +23,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 dolphyn_scenario_paths = {
-    "new_11w_test": f'new_11w_test/{dolphyn_results_folder}/Results_Ethylene',
+    "ethylene_only_test": f'ethylene_only_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 # Ethylene_capacity.csv Annual_Ethylene_Production is in tonnes/year already.
@@ -332,11 +332,11 @@ for scen_short, scen_path in dolphyn_scenario_paths.items():
     balance_retrofit_path = os.path.join(results_dir, "Ethylene_Retrofit_Balance_newv.csv")
 
     if not os.path.exists(balance_path):
-        print(f"Warning: Ethylene_Balance_newv.csv not found: {balance_path}")
+        print(f"Warning: Ethylene_Balance.csv not found: {balance_path}")
         continue
 
     if not os.path.exists(balance_retrofit_path):
-        print(f"Warning: Ethylene_Retrofit_Balance_newv.csv not found: {balance_retrofit_path}")
+        print(f"Warning: Ethylene_Retrofit_Balance.csv not found: {balance_retrofit_path}")
         continue
 
     # Production

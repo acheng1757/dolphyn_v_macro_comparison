@@ -16,17 +16,17 @@ plt.rcParams["font.family"] = "Arial"
 # Paths and scenarios
 # ---------------------------------------------------------------------
 
-scenario_names = ["new_11w_test"]
+scenario_names = ["ethylene_only_test"]
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir, macro_results_folder, dolphyn_results_folder
 
 dolphyn_scenario_paths = {
-    "new_11w_test": f'new_11w_test/{dolphyn_results_folder}/Results_Ethylene',
+    "ethylene_only_test": f'all_demand_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 macro_scenario_paths = {
-    "new_11w_test": f'new_11w_test/{macro_results_folder}/results',
+    "ethylene_only_test": f'ethylene_only_test/{macro_results_folder}/results',
 }
 
 # Ethylene flows are already in tonnes — no conversion needed for either model.

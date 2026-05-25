@@ -8,16 +8,16 @@ import pandas as pd
 
 macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
-macro_results_folder = "results_001"
+macro_results_folder = "results_004"
 dolphyn_results_folder = "Results_1"
-scenario_names = ["new_11w_test"]
+scenario_names = ["ethylene_only_test"]
 
 scenario_folders = [
-    f'new_11w_test/{macro_results_folder}/results',
+    f'ethylene_only_test/{macro_results_folder}/results',
 ]
 
 scenario_labels = {
-    f'new_11w_test/{macro_results_folder}/results': "new_11w_test",
+    f'ethylene_only_test/{macro_results_folder}/results': "ethylene_only_test",
 }
 
 chunk_size = 50_000
