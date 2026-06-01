@@ -18,10 +18,15 @@ conversion_factor = MWH_TO_EJ
 mwh_h2_p_tonne_h2 = 39.39
 
 dolphyn_scenario_paths = {
-    "ethylene_only_test": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test",
+    "ethylene_only_test": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test/",
 }
 
+# is MS_MTO for ng or h2 in?
+
 scenario_names = list(dolphyn_scenario_paths.keys())
+
+# right now bio h2 will only show up in the Results_BESC folder and if it were to be built would not be caught here
+# seems like i am missing h2 demand in a sector somewhere
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -271,12 +276,14 @@ def compute_ethylene_h2_production_ej(scenario_dir):
     
     return total_tonnes * MWH_TO_EJ * mwh_h2_p_tonne_h2
 
-H2_ASSETS = ["TSC+H2in:CH4", "TSC+H2in"]
+H2_ASSETS = ["TSC+H2in:CH4", "TSC+H2in","MS+MTO+CC90","Bio-eth+CC88:H2"]
 
 # Maps CSV asset names → Ethylene_Resource keys in the process parameter files
 RESOURCE_MAPPING = {
     "TSC+H2in:CH4": "F-H2in-CH4out",
     "TSC+H2in":     "F-H2in",
+    "MS+MTO+CC90":     "S-CC90-H2in",
+    "Bio-eth+CC88:H2":     "B-H2in",
 }
 
 def load_ethylene_retrofit_balance(
@@ -343,7 +350,7 @@ def load_ethylene_retrofit_balance(
         df["Resource"] = df["Resource"].replace(resource_mapping)
 
     # Sign convention: consumption is negative in the balance → flip for merge
-    df["Annual_ethane_Consumption"] = df["AnnualSum"]
+    df["Annual_ethane_Consumption"] = -df["AnnualSum"] # this is an incorrect name
 
     return df
 
@@ -398,7 +405,7 @@ syn_ng_df_combined, _ = read_scenario_csvs(
 
 # ADD RETROFIT AND STUFF LATER
 ethylene_df_combined, _ = read_scenario_csvs(
-    "Results_Ethylene/Ethylene_capacity.csv"
+    f'{dolphyn_results_folder}/Results_Ethylene/Ethylene_capacity.csv'
 )
 _eth_df = pd.read_csv(os.path.join(dolphyn_scenario_paths[scenario_names[0]], "Ethylene_Resources.csv"))
 _eth_df.columns = _eth_df.columns.str.strip()
@@ -473,10 +480,10 @@ ethylene_merged_combined["Annual_H2_Consumption_EJ"] = (
         ethylene_merged_combined["tonnes_h2_p_tonne_ethylene"],
         errors="coerce",
     ).fillna(0.0)
-    / pd.to_numeric(
-        ethylene_merged_combined["tonne_ethane_p_tonne_ethylene"],
-        errors="coerce",
-    ).fillna(0.0)
+    #/ pd.to_numeric(
+    #    ethylene_merged_combined["tonne_ethane_p_tonne_ethylene"],
+    #    errors="coerce",
+    #).fillna(0.0)
     * mwh_h2_p_tonne_h2
     * conversion_factor
 )
@@ -498,6 +505,7 @@ retrofit_df = load_ethylene_retrofit_balance(
     assets=H2_ASSETS,
     resource_mapping=RESOURCE_MAPPING,
 )
+retrofit_df = retrofit_df[retrofit_df["Time"] == "AnnualSum"].copy()
 retrofit_df["Scenario"] = scenario_names[0]
 retrofit_df["Resource_Category"] = "Steam Cracker Ethylene Consumption"
 
@@ -524,10 +532,10 @@ ethylene_retrofit_merged_combined["Annual_H2_Consumption_EJ"] = (
         ethylene_retrofit_merged_combined["tonnes_h2in_p_tonne_ethylene"],
         errors="coerce",
     ).fillna(0.0)
-    / pd.to_numeric(
-        ethylene_retrofit_merged_combined["tonne_ethane_p_tonne_ethylene"],
-        errors="coerce",
-    ).fillna(0.0)
+    #/ pd.to_numeric(
+    #    ethylene_retrofit_merged_combined["tonne_ethane_p_tonne_ethylene"],
+    #    errors="coerce",
+    #).fillna(0.0)
     * mwh_h2_p_tonne_h2
     * conversion_factor
 )
@@ -671,6 +679,20 @@ print(combined_data)
 print("\nRaw eth_h2_production_ej:", eth_h2_production_ej)
 print("\nRaw dolphyn_h2_demand_ej:", dolphyn_h2_demand_ej)
 print("\ncombined_data:\n", combined_data)
+
+
+# ---------------------------------------------------------------------
+# Print net H2 balance (production + and consumption -) before plotting
+# ---------------------------------------------------------------------
+
+print("\nH2 Net Balance Summary (EJ):")
+print(f"{'Scenario':<20} {'Production (+)':<18} {'Consumption (-)':<18} {'Net Balance':<12}")
+print("-" * 70)
+for scen, row in combined_data[desired_order].iterrows():
+    production = row[row > 0].sum()
+    consumption = row[row < 0].sum()
+    net = production + consumption
+    print(f"{scen:<20} {production:<18.4f} {consumption:<18.4f} {net:<12.4f}")
 
 
 # ---------------------------------------------------------------------

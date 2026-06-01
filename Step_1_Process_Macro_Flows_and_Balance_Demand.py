@@ -138,9 +138,9 @@ sector_definitions = {
                 r"global_fossil_petroleum",
             ]),
             ("Fossil Liquid Fuels", [
-                r"Global_Gasoline_Fossil_Upstream_fossil_fuel",
-                r"Global_Diesel_Fossil_Upstream_fossil_fuel",
-                r"Global_Jetfuel_Fossil_Upstream_fossil_fuel",
+                r"Global_Gasoline_Fossil_Upstream_fuel",
+                r"Global_Diesel_Fossil_Upstream_fuel",
+                r"Global_Jetfuel_Fossil_Upstream_fuel",
             ]),
             ("Gasoline Use", [
                 r"global_gasoline",
@@ -440,7 +440,8 @@ def get_demand_path_for_scenario(scenario):
 
     return os.path.join(
         macro_base_dir,
-        scenario_root,
+        "clean_slate_5_25",
+        #scenario_root,
         "system",
         "demand.csv",
     )

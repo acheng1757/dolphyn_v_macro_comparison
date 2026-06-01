@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import os
-import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
@@ -21,19 +20,24 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"ethylene_only_test/{dolphyn_results_folder}",
+    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"results_1848h_ethylene_only/{macro_results_folder}/results",
-}
-
-# Used to locate asset json files under the Macro scenario input folder.
-macro_input_paths = {
-    scenario_names[0]: "ethylene_only_test",
+    scenario_names[0]: f"clean_slate_5_25/results_168h_all/results",
 }
 
 TONNE_TO_MT = 1e-6
+
+# Liquid fuel end-use emission rates (tonne CO2 / MWh)
+LIQUID_FUEL_EMISSION_RATES = {
+    "Gasoline": 0.243968185,   # t-CO2/MWh Gasoline
+    "JetFuel":  0.246356685,   # t-CO2/MWh JetFuel
+    "Diesel":   0.249427613,   # t-CO2/MWh Diesel
+}
+
+# Natural gas end-use emission rate (tonne CO2 / MWh)
+NG_EMISSION_RATE = 0.182890835  # t-CO2/MWh NG
 
 
 # ---------------------------------------------------------------------
@@ -63,7 +67,7 @@ category_colors = {
     "Synthetic NG and processes": "violet",
     "Biofuels and processes": "lightgreen",
     "Ethylene and processes": "#e8630a",
-    "Ethanol and processes": "#4caf72",
+    "Ethanol and processes": 'gold',
 }
 
 category_names = {
@@ -86,8 +90,8 @@ category_names = {
 
 dolphyn_columns_of_interest = [
     "Power Emissions",
-    "HSC Emissions",
-    "CSC Emissions",
+    "H2 Emissions",
+    "DAC Emissions",
     "Bio Elec Plant Emissions",
     "Biomass CO2 for Bio Elec",
     "Bio H2 Plant Emissions",
@@ -98,47 +102,72 @@ dolphyn_columns_of_interest = [
     "Biomass CO2 for Bio NG",
     "Conventional NG",
     "Syn NG Plant Emissions",
-    "Syn NG",
+    "Synthetic NG",
     "Bio NG",
-    "Conventional Liquid Fuels",
+    "Conventional Gasoline",
+    "Conventional Jetfuel",
+    "Conventional Diesel",
     "Synfuel Plant Emissions",
-    "Synfuels",
-    "Biofuels",
+    "Syn Gasoline",
+    "Syn Jetfuel",
+    "Syn Diesel",
+    "Bio Gasoline",
+    "Bio Jetfuel",
+    "Bio Diesel",
     "NG Reduction from Power CCS",
     "NG Reduction from H2 CCS",
     "NG Reduction from DAC CCS",
+    "Ethylene Production",
+    "Bio Ethanol Plant Emissions",
+    "Biomass CO2 for Bio Ethanol",
+    "Ethylene Combustion",
 ]
 
 dolphyn_combine_mapping = {
     "Power Emissions": "Conventional NG",
     "NG Reduction from Power CCS": "Conventional NG",
 
-    "HSC Emissions": "Conventional NG",
+    "H2 Emissions": "Conventional NG",
     "NG Reduction from H2 CCS": "Conventional NG",
 
-    "CSC Emissions": "DAC Capture",
+    "DAC Emissions": "DAC Capture",
     "NG Reduction from DAC CCS": "DAC Capture",
 
     "Biomass CO2 for Bio Elec": "Biomass Capture",
     "Biomass CO2 for Bio H2": "Biomass Capture",
     "Biomass CO2 for Bio LF": "Biomass Capture",
     "Biomass CO2 for Bio NG": "Biomass Capture",
+    "Biomass CO2 for Bio Ethanol": "Ethanol Biomass Capture",
 
     "Bio Elec Plant Emissions": "Biofuels and processes",
     "Bio H2 Plant Emissions": "Biofuels and processes",
     "Bio LF Plant Emissions": "Biofuels and processes",
     "Bio NG Plant Emissions": "Biofuels and processes",
-    "Biofuels": "Biofuels and processes",
     "Bio NG": "Biofuels and processes",
+    "Bio Gasoline": "Biofuels and processes",
+    "Bio Jetfuel": "Biofuels and processes",
+    "Bio Diesel": "Biofuels and processes",
+
+    "Bio Ethanol Plant Emissions": "Ethanol and processes",
 
     "Syn NG Plant Emissions": "Synthetic NG and processes",
-    "Syn NG": "Synthetic NG and processes",
+    "Synthetic NG": "Synthetic NG and processes",
 
     "Synfuel Plant Emissions": "Synthetic Fuels and processes",
-    "Synfuels": "Synthetic Fuels and processes",
+    "Syn Gasoline": "Synthetic Fuels and processes",
+    "Syn Jetfuel": "Synthetic Fuels and processes",
+    "Syn Diesel": "Synthetic Fuels and processes",
+
+    "Conventional Gasoline": "Conventional Liquid Fuels",
+    "Conventional Jetfuel": "Conventional Liquid Fuels",
+    "Conventional Diesel": "Conventional Liquid Fuels",
+
+    "Ethylene Production": "Ethylene and processes",
+    "Ethylene Combustion": "Ethylene and processes",
 }
 
 global_values_per_scenario = {}
+annualsum_row_totals = {}
 
 for scenario, scen_folder in dolphyn_scenario_paths.items():
     path = os.path.join(
@@ -149,22 +178,46 @@ for scenario, scen_folder in dolphyn_scenario_paths.items():
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dolphyn CO2 emission balance file not found: {path}")
 
-    df = pd.read_csv(path, header=0)
-    df.columns = df.columns.str.strip()
+    df_raw = pd.read_csv(path, header=None)
+    col_names = df_raw.iloc[0]
+    zone_ids  = df_raw.iloc[1]
 
-    annual_sum_row = df[df.iloc[:, 0].astype(str).str.contains("AnnualSum", na=False, case=False)]
+    annualsum_mask = df_raw.iloc[:, 0].astype(str).str.contains('AnnualSum', case=False, na=False)
 
-    if not annual_sum_row.empty:
-        extracted_values = {}
+    if annualsum_mask.any():
+        annualsum_row = df_raw[annualsum_mask].iloc[0]
 
-        for col in dolphyn_columns_of_interest:
-            if col in annual_sum_row.columns:
-                value = pd.to_numeric(annual_sum_row.iloc[0][col], errors="coerce")
-                extracted_values[col] = 0.0 if pd.isna(value) else value * TONNE_TO_MT
+        non_global_col_names = set(
+            col_names.iloc[i] for i in range(1, len(col_names))
+            if str(zone_ids.iloc[i]).strip() not in ('Global', 'Zone', '')
+        )
+
+        zone_indices = [i for i in range(1, len(col_names))
+                        if str(zone_ids.iloc[i]).strip() not in ('Global', 'Zone', '')]
+        global_only_indices = [i for i in range(1, len(col_names))
+                               if str(zone_ids.iloc[i]).strip() == 'Global'
+                               and col_names.iloc[i] not in non_global_col_names]
+        annualsum_row_totals[scenario] = sum(
+            float(annualsum_row.iloc[i]) for i in zone_indices + global_only_indices
+            if str(annualsum_row.iloc[i]).strip() not in ('', 'nan')
+        ) * TONNE_TO_MT
+
+        extracted = {}
+        for col_name in dolphyn_columns_of_interest:
+            zone_matches = [i for i in range(len(col_names))
+                            if col_names.iloc[i] == col_name
+                            and str(zone_ids.iloc[i]).strip() not in ('Global', 'Zone', '')]
+            if zone_matches:
+                extracted[col_name] = sum(float(annualsum_row.iloc[i]) for i in zone_matches) * TONNE_TO_MT
             else:
-                extracted_values[col] = 0.0
+                global_matches = [i for i in range(len(col_names))
+                                  if col_names.iloc[i] == col_name
+                                  and str(zone_ids.iloc[i]).strip() == 'Global']
+                extracted[col_name] = sum(float(annualsum_row.iloc[i]) for i in global_matches) * TONNE_TO_MT if global_matches else 0.0
+        extracted_values = extracted
     else:
         extracted_values = {col: 0.0 for col in dolphyn_columns_of_interest}
+        annualsum_row_totals[scenario] = 0.0
 
     global_values_per_scenario[scenario] = extracted_values
 
@@ -184,72 +237,6 @@ dolphyn_combined_data = dolphyn_combined_data[desired_order]
 # ---------------------------------------------------------------------
 # Helper functions for MACRO
 # ---------------------------------------------------------------------
-
-def find_macro_asset_path(scen_short, filename):
-    """
-    Try to locate an asset JSON file for a MACRO scenario.
-    """
-    candidate_paths = [
-        os.path.join(
-            macro_base_dir,
-            macro_input_paths[scen_short],
-            "assets",
-            filename,
-        ),
-        os.path.join(
-            macro_base_dir,
-            "assets",
-            filename,
-        ),
-    ]
-
-    for path in candidate_paths:
-        if os.path.exists(path):
-            return path
-
-    raise FileNotFoundError(
-        f"Could not find {filename} for scenario {scen_short}. Checked:\n  "
-        + "\n  ".join(candidate_paths)
-    )
-
-
-def read_liquid_fuels_emission_rates(json_path):
-    """
-    Read liquid fuel end-use emission rates from liquid_fuels_end_use.json.
-
-    Returns rates by commodity:
-      Gasoline, JetFuel, Diesel
-    """
-    with open(json_path, "r") as f:
-        data = json.load(f)
-
-    rates = {}
-
-    for block in data.get("FuelsEndUse", []):
-        for item in block.get("instance_data", []):
-            commodity = item.get("fuel_commodity")
-            rate = item.get("emission_rate")
-
-            if commodity is not None and rate is not None:
-                rates[str(commodity)] = float(rate)
-
-    return rates
-
-
-def read_ng_emission_rate(json_path):
-    """
-    Read natural gas end-use emission rate from naturalgas_end_use.json.
-    """
-    with open(json_path, "r") as f:
-        data = json.load(f)
-
-    for block in data.get("NaturalGasEndUse", []):
-        global_data = block.get("global_data", {})
-        if "emission_rate" in global_data:
-            return float(global_data["emission_rate"])
-
-    raise ValueError(f"Could not find emission_rate in {json_path}")
-
 
 def infer_liquid_fuel_commodity(row):
     """
@@ -360,7 +347,7 @@ def map_macro_liquid_fuel_source(row):
     if sector == "Synthetic fuels":
         return "Synthetic Fuels and processes"
 
-    if sector == "Liquid fuels" and category == "Fossil Petroleum Refinery":
+    if sector == "Liquid fuels" and category in ("Fossil Petroleum Refinery", "Fossil Liquid Fuels"):
         return "Conventional Liquid Fuels"
 
     if sector == "Ethylene":
@@ -401,21 +388,8 @@ for scen_short, scen_path in macro_scenario_paths.items():
         "annual_flows_balance_NG.csv",
     )
 
-    liquid_fuels_json_path = find_macro_asset_path(
-        scen_short,
-        "liquid_fuels_end_use.json",
-    )
-
-    ng_json_path = find_macro_asset_path(
-        scen_short,
-        "naturalgas_end_use.json",
-    )
-
-    liquid_fuel_emission_rates = read_liquid_fuels_emission_rates(
-        liquid_fuels_json_path
-    )
-
-    ng_emission_rate = read_ng_emission_rate(ng_json_path)
+    liquid_fuel_emission_rates = LIQUID_FUEL_EMISSION_RATES
+    ng_emission_rate = NG_EMISSION_RATE
 
     # -------------------------------------------------------------
     # 1. Direct CO2 balance rows, excluding fuel end-use rows
@@ -740,3 +714,21 @@ ax.legend(
 plt.subplots_adjust(left=0.24, right=0.98, top=0.88, bottom=0.36)
 
 plt.show()
+
+# Print balance summary
+print()
+for scenario in scenario_names:
+    d_row = dolphyn_combined_data.loc[scenario]
+    d_pos = d_row[d_row > 0].sum()
+    d_neg = d_row[d_row < 0].sum()
+    d_net = d_row.sum()
+    row_total = annualsum_row_totals.get(scenario, float('nan'))
+    print(f'Scenario: {scenario}')
+    print(f'  Dolphyn AnnualSum row total : {row_total:+.2f} Mt')
+    print(f'  Dolphyn plot net            : {d_net:+.2f} Mt  (pos: {d_pos:+.2f},  neg: {d_neg:+.2f})')
+    m_row = macro_combined_data.loc[scenario]
+    m_pos = m_row[m_row > 0].sum()
+    m_neg = m_row[m_row < 0].sum()
+    m_net = m_row.sum()
+    print(f'  MACRO   plot net            : {m_net:+.2f} Mt  (pos: {m_pos:+.2f},  neg: {m_neg:+.2f})')
+    print()

@@ -23,11 +23,11 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f'ethylene_only_test/{dolphyn_results_folder}/Results_Ethylene',
+    scenario_names[0]: f'all_demand_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f'clean_slate_5_25/{macro_results_folder}/results',
+    scenario_names[0]: f'clean_slate_5_25/results_168h_all/results',
 }
 
 # Ethylene flows are already in tonnes — no conversion needed for either model.

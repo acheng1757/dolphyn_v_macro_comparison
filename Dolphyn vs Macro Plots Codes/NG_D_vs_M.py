@@ -19,11 +19,11 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    "results_1848h_all": f"all_demand_test/{dolphyn_results_folder}",
+    "results_168_ethylene_only": f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    "results_1848h_all": f"clean_slate_5_25/results_1848h_all/results",
+    "results_168_ethylene_only": f"clean_slate_5_25/results_1848h_all/results",
 }
 
 # Dolphyn NG_Balance values are treated as MMBtu.
@@ -37,55 +37,48 @@ MWH_TO_EJ = 3.6e-9
 # ---------------------------------------------------------------------
 
 # Dolphyn columns of interest
-columns_of_interest = [
-    "Syn_NG",
-    "Conventional_NG",
-    "NG_Demand",
-    "Power",
-    "H2",
-    "CSC",
-    "BESC",
-    "Ethylene",
-    "Ethanol",
-]
+columns_of_interest = ["Syn_NG", "Bio_NG", "Conventional_NG", "NG_Demand", "Power", "H2", "CSC", "BESC", "Ethylene"]
 
 # Desired plotting order
 desired_order = [
     "NG_Demand",
+    "Ethylene",
     "Power",
     "H2",
     "CSC",
     "BESC",
-    "Ethylene",
-    "Ethanol",
     "Syn_NG",
+    "Bio_NG",
     "Conventional_NG",
+    "Ethanol"
 ]
 
 category_colors = {
     "Syn_NG": "violet",
+    "Bio_NG": "seagreen",
     "Conventional_NG": "lightgrey",
     "NG_Demand": "bisque",
     "Power": "orange",
     "H2": "deepskyblue",
     "CSC": "darkblue",
-    "BESC": "seagreen",
-    "Ethylene": "#e8630a",
-    "Ethanol": "#4caf72",
+    "BESC": "mediumseagreen",
+    "Ethylene": "lightsalmon",
+    "Ethanol": "lightsalmon",
 }
 
+# this only replaces the legend labels
 category_names = {
     "Syn_NG": "Syn. NG",
+    "Bio_NG": "Bio NG",
     "Conventional_NG": "Fossil NG",
     "NG_Demand": "Demand",
     "Power": "Power Sector",
     "H2": "H2 Sector",
     "CSC": "Solvent DAC",
-    "BESC": "Bio NG",
-    "Ethylene": "Ethylene Sector",
-    "Ethanol": "Ethanol Sector",
+    "BESC": "Bio NG Prod.",
+    "Ethylene": "Ethylene",
+    "Ethanol": "Ethanol",
 }
-
 
 # ---------------------------------------------------------------------
 # Dolphyn NG balance
@@ -297,6 +290,18 @@ y_tick_labels = [
     for _, model in plot_df.index
 ]
 
+# ---------------------------------------------------------------------
+# Print net NG balance (production + and consumption -) before plotting
+# ---------------------------------------------------------------------
+
+print("\nNG Net Balance Summary (EJ):")
+print(f"{'Scenario':<20} {'Model':<10} {'Production (+)':<18} {'Consumption (-)':<18} {'Net Balance':<12}")
+print("-" * 80)
+for (scen, model), row in plot_df.iterrows():
+    production = row[row > 0].sum()
+    consumption = row[row < 0].sum()
+    net = production + consumption
+    print(f"{scen:<20} {model:<10} {production:<18.4f} {consumption:<18.4f} {net:<12.4f}")
 
 # ---------------------------------------------------------------------
 # Plot Dolphyn and MACRO NG balance side by side

@@ -22,22 +22,21 @@ category_colors = {
     "H2": "deepskyblue",
     "CSC": "darkblue",
     "BESC": "mediumseagreen",
-    "Ethylene Consumption": "red",
-    "Ethylene Production": "lightsalmon",
+    "Ethylene": "red",
 }
 
 # Custom display names for each category
 category_names = {
     "Syn_NG": "Syn. NG",
-    "Bio_NG": "Bio NG",
+    "Bio_NG": "Bio NG Prod.",
     "Conventional_NG": "Fossil NG",
     "NG_Demand": "Demand",
     "Power": "Power Sector",
     "H2": "H2 Sector",
     "CSC": "Solvent DAC",
     "BESC": "Bio NG Prod.",
-    "Ethylene Consumption": "Ethylene Cons.",
-    "Ethylene Production": "Ethylene Prod.",
+    "Ethylene Consumption": "Ethylene",
+    "Ethylene Production": "Ethylene",
 }
 
 # Specify desired order for the columns
@@ -47,8 +46,7 @@ desired_order = [
     "H2",
     "CSC",
     "BESC",
-    "Ethylene Consumption",
-    "Ethylene Production",
+    "Ethylene",
     "Syn_NG",
     "Bio_NG",
     "Conventional_NG",

@@ -272,7 +272,7 @@ available_order = [col for col in desired_order if col in combined_data.columns]
 combined_data = combined_data[available_order]
 
 # Plotting
-fig, ax = plt.subplots(figsize=(4.3, 2.2))
+fig, ax = plt.subplots(figsize=(9, 3.5))
 
 combined_data[available_order].plot(
     kind='barh', stacked=True, width=0.7, ax=ax,
@@ -281,20 +281,21 @@ combined_data[available_order].plot(
 
 ax.axvline(x=0, color='black', linewidth=1, linestyle='--')
 
-plt.ylabel('Scenario', fontsize=16)
-plt.title('Total LF Balance (EJ)', fontsize=16)
-plt.yticks(fontsize=16)
-plt.xticks(fontsize=16)
+plt.ylabel('Scenario', fontsize=10)
+plt.title('Total LF Balance (EJ)', fontsize=11)
+plt.yticks(fontsize=9)
+plt.xticks(fontsize=9)
 ax.set_xlim(-14, 14)
 ax.set_xticks([-12, -8, -4, 0, 4, 8, 12])
 ax.invert_yaxis()
 
 handles, labels = ax.get_legend_handles_labels()
 custom_labels = [label_map[col] for col in available_order]
-ax.legend(handles, custom_labels, loc='upper center', bbox_to_anchor=(0.5, -0.15),
-          ncol=4, fontsize=14, frameon=False)
+legend = ax.legend(handles, custom_labels, loc='upper center', bbox_to_anchor=(0.5, -0.12),
+                   ncol=7, fontsize=8, frameon=True, framealpha=0.9)
 
 plt.tight_layout()
+fig.subplots_adjust(bottom=0.25)
 plt.show()
 
 # Print flow summary for each scenario
