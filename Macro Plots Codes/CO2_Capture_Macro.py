@@ -10,16 +10,13 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    "results_168_ethylene_only": f"try_again_5_31/{macro_results_folder}/results",
 }
 
 # MACRO captured CO2 values are treated as tonnes CO2.
@@ -36,6 +33,8 @@ desired_order = [
     "Synthetic NG",
     "NG Power CCS",
     "NG H2 CCS",
+    "Ethylene CCS",
+    "Ethanol CCS",
     "DAC Capture",
     "Biomass Capture",
 ]
@@ -47,6 +46,8 @@ category_colors = {
     "NG H2 CCS": "deepskyblue",
     "Synthetic Fuels": "purple",
     "Synthetic NG": "violet",
+    "Ethylene CCS": "#e8630a",
+    "Ethanol CCS": "#4caf72",
     "CO2 Storage": "darkgoldenrod",
 }
 
@@ -56,6 +57,8 @@ category_names = {
     "Synthetic Fuels": "Syn. Liquids",
     "NG Power CCS": "Power CCS",
     "NG H2 CCS": "H2 CCS",
+    "Ethylene CCS": "Ethylene CCS",
+    "Ethanol CCS": "Ethanol CCS",
     "DAC Capture": "DAC",
     "Biomass Capture": "BECCS",
 }
@@ -98,6 +101,12 @@ def map_macro_captured_co2_category(row):
             return "Synthetic NG"
 
         return "Synthetic Fuels"
+
+    if sector == "Ethylene":
+        return "Ethylene CCS"
+
+    if sector == "Ethanol":
+        return "Ethanol CCS"
 
     return None
 

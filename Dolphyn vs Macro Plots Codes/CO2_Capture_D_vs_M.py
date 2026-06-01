@@ -13,23 +13,18 @@ import sys
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
-scenario_names = ["HB-HS", "HB-LS", "LB-HS", "LB-LS"]
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir
+from Step_1_Process_Macro_Flows_and_Balance_Demand import (
+    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_results_folder, scenario_names,
+)
 
 dolphyn_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    scenario_names[0]: f"clean_slate_5_25/{macro_results_folder}/results",
 }
 
 # Dolphyn and MACRO captured CO2 values are treated as tonnes CO2.
@@ -78,6 +73,8 @@ desired_order = [
     "Synthetic NG",
     "NG Power CCS",
     "NG H2 CCS",
+    "Ethylene CCS",
+    "Ethanol CCS",
     "DAC Capture",
     "Biomass Capture",
 ]
@@ -89,6 +86,8 @@ category_colors = {
     "NG H2 CCS": "deepskyblue",
     "Synthetic Fuels": "purple",
     "Synthetic NG": "violet",
+    "Ethylene CCS": "#e8630a",
+    "Ethanol CCS": "#4caf72",
     "CO2 Storage": "darkgoldenrod",
 }
 
@@ -98,6 +97,8 @@ category_names = {
     "Synthetic Fuels": "Syn. Liquids",
     "NG Power CCS": "Power CCS",
     "NG H2 CCS": "H2 CCS",
+    "Ethylene CCS": "Ethylene CCS",
+    "Ethanol CCS": "Ethanol CCS",
     "DAC Capture": "DAC",
     "Biomass Capture": "BECCS",
 }
@@ -107,32 +108,14 @@ category_names = {
 # Dolphyn captured CO2 balance
 # ---------------------------------------------------------------------
 
-dolphyn_file_paths = [
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-HS"],
-        "Results/Results_CSC/Zone_CO2_storage_balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-LS"],
-        "Results/Results_CSC/Zone_CO2_storage_balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-HS"],
-        "Results/Results_CSC/Zone_CO2_storage_balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-LS"],
-        "Results/Results_CSC/Zone_CO2_storage_balance.csv",
-    ),
-]
-
 global_values_per_scenario = {}
 
-for path, scenario in zip(dolphyn_file_paths, scenario_names):
+for scenario, scen_folder in dolphyn_scenario_paths.items():
+    path = os.path.join(
+        dolphyn_base_dir,
+        scen_folder,
+        "Results/Results_CSC/Zone_CO2_storage_balance.csv",
+    )
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dolphyn captured CO2 balance file not found: {path}")
 
@@ -214,6 +197,12 @@ def map_macro_captured_co2_category(row):
             return "Synthetic NG"
 
         return "Synthetic Fuels"
+
+    if sector == "Ethylene":
+        return "Ethylene CCS"
+
+    if sector == "Ethanol":
+        return "Ethanol CCS"
 
     return None
 

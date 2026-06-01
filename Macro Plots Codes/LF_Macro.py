@@ -7,7 +7,7 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -19,10 +19,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
 }
 
 # MACRO annual_flow values are treated as MWh.
@@ -42,6 +39,7 @@ desired_order = [
     "Bio FT (High Diesel) High CCS",
     "SFT Non CCS",
     "SFT CCS",
+    "Ethylene Gasoline",
     "Fossil",
 ]
 
@@ -54,6 +52,7 @@ category_colors = {
     "Bio FT (High Diesel) High CCS": "forestgreen",
     "SFT Non CCS": "purple",
     "SFT CCS": "indigo",
+    "Ethylene Gasoline": "#e8630a",
     "Fossil": "grey",
 }
 
@@ -66,6 +65,7 @@ label_map = {
     "Bio FT (High Diesel) High CCS": "Bio-FT (Diesel) CC99",
     "SFT Non CCS": "Syn-FT (Jet)",
     "SFT CCS": "Syn-FT (Jet) CC99",
+    "Ethylene Gasoline": "Ethylene Naphtha",
     "Fossil": "Fossil Liquids",
 }
 
@@ -177,6 +177,10 @@ def map_macro_lf_category(row):
 
         return None
 
+    # Exclude crude-oil input edges (negative resource consumption, not liquid fuel supply)
+    if category == "Fossil Liquid Fuels":
+        return None
+
     # Fossil liquid fuels
     if (
         "fossil" in text
@@ -186,8 +190,10 @@ def map_macro_lf_category(row):
     ):
         return "Fossil"
 
-    return None
+    if sector == "Ethylene":
+        return "Ethylene Gasoline"
 
+    return None
 
 # ---------------------------------------------------------------------
 # Read MACRO liquid-fuel balance
@@ -271,6 +277,21 @@ macro_combined_data = (
 print("\nMACRO liquid fuels production by scenario (EJ), demand excluded:")
 print(macro_combined_data)
 
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario
+# ---------------------------------------------------------------------
+print("Liquid Fuels balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} EJ, "
+        f"Demand={total_negative:+.4f} EJ, "
+        f"Net={net:+.4f} EJ  [{status}]"
+    )
 
 # ---------------------------------------------------------------------
 # Plot MACRO-only liquid-fuels production

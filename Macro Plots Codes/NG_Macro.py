@@ -10,17 +10,15 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    "results_168_ethylene_only": f"clean_slate_5_25/results_168h_all/results",
 }
+
 
 # MACRO annual_flow values are treated as MWh, consistent with previous plots.
 MWH_TO_EJ = 3.6e-9
@@ -36,6 +34,8 @@ desired_order = [
     "H2",
     "CSC",
     "BESC",
+    "Ethylene",
+    "Ethanol",
     "Syn_NG",
     "Conventional_NG",
 ]
@@ -48,6 +48,8 @@ category_colors = {
     "H2": "deepskyblue",
     "CSC": "darkblue",
     "BESC": "seagreen",
+    "Ethylene": "#e8630a",
+    "Ethanol": "#4caf72",
 }
 
 category_names = {
@@ -58,6 +60,8 @@ category_names = {
     "H2": "H2 Sector",
     "CSC": "Solvent DAC",
     "BESC": "Bio NG",
+    "Ethylene": "Ethylene Sector",
+    "Ethanol": "Ethanol Sector",
 }
 
 
@@ -75,6 +79,10 @@ def map_macro_ng_category(row):
     """
     sector = str(row.get("Sector", "")).strip()
     category = str(row.get("Category", "")).strip()
+
+    # NG demand from demand.csv
+    if sector == "Demand":
+        return "NG_Demand"
 
     # NG demand / end use
     if category == "NG End Use":
@@ -103,6 +111,12 @@ def map_macro_ng_category(row):
     # Bioenergy-sector NG flows
     if sector == "Bioenergy":
         return "BESC"
+
+    if sector == "Ethylene":
+        return "Ethylene"
+
+    if sector == "Ethanol":
+        return "Ethanol"
 
     return None
 
@@ -186,6 +200,21 @@ macro_combined_data = macro_combined_data[desired_order]
 print("\nMACRO NG balance by scenario (EJ):")
 print(macro_combined_data)
 
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario
+# ---------------------------------------------------------------------
+print("Natural Gas balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} EJ, "
+        f"Demand={total_negative:+.4f} EJ, "
+        f"Net={net:+.4f} EJ  [{status}]"
+    )
 
 # ---------------------------------------------------------------------
 # Plot MACRO-only NG balance

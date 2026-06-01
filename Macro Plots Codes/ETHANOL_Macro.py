@@ -22,7 +22,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "Ethanol_LF_Ethlyene_Case": f"Ethanol_LF_Ethlyene_Case/{macro_results_folder}/results",
+    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
 }
 
 # Ethylene flows in flows.csv are already in tonnes — no conversion needed.
@@ -37,16 +37,22 @@ desired_order = [
     "DryMill_CCS_90_RETROFIT",
     "DryMill_CCS_60",
     "DryMill_CCS_90",
-    "Ethanol Demand",
+    "Bio_Ethanol_CCS_20",
+    "Bio_Ethanol_CCS_86",
+    "Bio_Ethanol_Non_CCS",
+    "Ethylene",
 ]
 
 category_colors = {
-    "DryMill_Existing_Non_CCS":                  "#e8630a",   # vivid orange
-    "DryMill_CCS_60_RETROFIT":                  "#e8630a",   # vivid orange
-    "DryMill_CCS_90_RETROFIT":                  "#e8630a",   # vivid orange
-    "DryMill_CCS_60":                  "#e8630a",   # vivid orange
-    "DryMill_CCS_90":                  "#e8630a",   # vivid orange
-    "Ethanol Demand":      "#5a6fa8",   # slate blue
+    "Bio_Ethanol_Non_CCS":      "#a8d5a2",   # light green
+    "Bio_Ethanol_CCS_20":       "#4caf72",   # medium green
+    "Bio_Ethanol_CCS_86":       "#1a6e30",   # dark green
+    "DryMill_Existing_Non_CCS": "#f4a86a",   # light orange
+    "DryMill_CCS_60_RETROFIT":  "#c45e20",   # medium-dark orange (retrofit)
+    "DryMill_CCS_90_RETROFIT":  "#8b3a0f",   # deep brick (retrofit, high capture)
+    "DryMill_CCS_60":           "#e8630a",   # vivid orange
+    "DryMill_CCS_90":           "#7a2e0e",   # deep brick
+    "Ethylene":           "#5a6fa8",   # slate blue
 }
 
 label_map = {
@@ -55,102 +61,36 @@ label_map = {
     "DryMill_CCS_90_RETROFIT":                  "DryMill_CCS_90_RETROFIT",
     "DryMill_CCS_60":                  "DryMill_CCS_60",
     "DryMill_CCS_90":                  "DryMill_CCS_90",
-    "Ethanol Demand":      "Ethanol Demand",
+    "Bio_Ethanol_CCS_20" : "Bio_Ethanol_CCS_20",
+    "Bio_Ethanol_CCS_86" : "Bio_Ethanol_CCS_86",
+    "Bio_Ethanol_Non_CCS" : "Bio_Ethanol_Non_CCS",
+    "Ethylene":      "Ethylene",
 }
 
 # ---------------------------------------------------------------------
 # MACRO ethanol balance mapping
 # ---------------------------------------------------------------------
-'''
-def map_macro_ethylene_category(row):
-    """
-    Map MACRO annual_flows_balance_Ethylene.csv rows to plot categories.
 
-    Production (positive Annual_Flow):
-        Thermal Steam Cracker  → F-* assets excluding F-Ein
-        Electric Steam Cracker → F-Ein
-        Ethanol Dehydration    → B-* assets
-        Synthetic Ethylene     → S-* assets
-
-    Consumption (negative Annual_Flow):
-        Ethylene Demand        → Demand sector rows
-    """
-    sector   = str(row.get("Sector",   "")).strip()
+def map_macro_ethanol_category(row):
+    sector = str(row.get("Sector", "")).strip()
     category = str(row.get("Category", "")).strip()
-    edge     = str(row.get("Edge",     "")).strip()
 
-    sector_lower   = sector.lower()
-    category_lower = category.lower()
-    edge_lower     = edge.lower()
+    # Ethanol production technologies
+    if sector == "Ethanol":
+        return category
 
-    # ------------------------------------------------------------------
-    # Demand rows
-    # ------------------------------------------------------------------
-    if sector_lower == "demand":
-        return "Ethylene Demand"
+    # Dehydration plants in the Ethylene sector consuming ethanol
+    if sector == "Ethylene":
+        return "Ethylene"
 
-    # ------------------------------------------------------------------
-    # Ethylene sector — map by category (set in sector_definitions)
-    # ------------------------------------------------------------------
-    if sector_lower == "ethylene":
-        if category == "Electric Steam Cracker":
-            return "Electric Steam Cracker"
-
-        if category == "Thermal Steam Cracker":
-            return "Thermal Steam Cracker"
-
-        if category == "Ethanol Dehydration":
-            return "Ethanol Dehydration"
-
-        if category == "Synthetic Ethylene":
-            return "Synthetic Ethylene"
-
-    # ------------------------------------------------------------------
-    # Fallback: try to infer directly from the edge name in case
-    # sector/category tagging is incomplete
-    # ------------------------------------------------------------------
-    if "f-ein" in edge_lower:
-        return "Electric Steam Cracker"
-
-    if any(x in edge_lower for x in ["f-ngin", "f-cc90", "f-h2in", "f-ngin-h2out",
-                                       "f-cc90-ngin", "f-cc90-ngin-h2out",
-                                       "f-h2in-ch4out"]):
-        return "Thermal Steam Cracker"
-
-    if any(x in edge_lower for x in ["b-ngin", "b-h2in"]):
-        return "Ethanol Dehydration"
-
-    if any(x in edge_lower for x in ["s-h2in", "s-cc90-h2in"]):
-        return "Synthetic Ethylene"
+    # Ethanol demand rows from demand.csv
+    if sector == "Demand":
+        return "Ethanol Demand"
 
     return None
 
-def map_macro_ethylene_category(row):
-    sector   = str(row.get("Sector",   "")).strip()
-    category = str(row.get("Category", "")).strip()
-
-    if sector.lower() == "demand":
-        return "Ethylene Demand"
-
-    mapping = {
-        "Thermal SC NGfuel":            "Thermal SC NGfuel",
-        "Thermal SC CC90 NGfuel":       "Thermal SC CC90 NGfuel",
-        "Thermal SC NGfuel H2out":      "Thermal SC NGfuel H2out",
-        "Thermal SC CC90 NGfuel H2out": "Thermal SC CC90 NGfuel H2out",
-        "Thermal SC H2fuel":            "Thermal SC H2fuel",
-        "Thermal SC H2fuel CH4out":     "Thermal SC H2fuel CH4out",
-        "Electric SC":                  "Electric SC",
-        "Dehydration NGfuel":           "Dehydration NGfuel",
-        "Dehydration H2fuel":           "Dehydration H2fuel",
-        "Synthetic H2fuel":             "Synthetic H2fuel",
-        "Synthetic CC90 H2fuel":        "Synthetic CC90 H2fuel",
-    }
-
-    return mapping.get(category, None)
-'''
-
 # ---------------------------------------------------------------------
-# Read MACRO ethylene balance
+# Read MACRO ethanol balance
 # ---------------------------------------------------------------------
 
 macro_eth_tables = []
@@ -161,7 +101,7 @@ for scen_short, scen_path in macro_scenario_paths.items():
         scen_path,
         "annual_flow_results",
         "balance_specific_flows",
-        "annual_flows_balance_Ethylene.csv",
+        "annual_flows_balance_Ethanol.csv",
     )
 
     if not os.path.exists(macro_eth_path):
@@ -187,14 +127,10 @@ for scen_short, scen_path in macro_scenario_paths.items():
         .fillna(0.0)
     )
 
-    macro_eth["Plot_Category"] = macro_eth["Category"]
-
-    '''
     macro_eth["Plot_Category"] = macro_eth.apply(
-        map_macro_ethylene_category,
+        map_macro_ethanol_category,
         axis=1,
     )
-    '''
 
     macro_eth = macro_eth[macro_eth["Plot_Category"].notna()].copy()
     macro_eth_tables.append(macro_eth)
@@ -232,9 +168,24 @@ macro_combined_data = (
     [desired_order]
 )
 
-print("\nMACRO ethylene balance by scenario (tonnes):")
+print("\nMACRO ethanol balance by scenario (tonnes):")
 print(macro_combined_data)
 
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario
+# ---------------------------------------------------------------------
+print("Ethanol balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} EJ, "
+        f"Demand={total_negative:+.4f} EJ, "
+        f"Net={net:+.4f} EJ  [{status}]"
+    )
 
 # ---------------------------------------------------------------------
 # Plot
@@ -259,7 +210,7 @@ plot_df.plot(
 
 ax.set_yticklabels(scenario_names, fontsize=14)
 ax.set_ylabel("")
-ax.set_title("Ethylene Balance (tonnes)", fontsize=16)
+ax.set_title("Ethanol Balance (tonnes)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")

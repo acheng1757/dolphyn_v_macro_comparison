@@ -16,7 +16,7 @@ MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
 macro_scenario_paths = {
-    "Ethylene_Case": f"Ethylene_Case/{macro_results_folder}/results",
+    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
 }
 
 
@@ -99,6 +99,9 @@ def map_macro_h2_category(row):
 
         return None
 
+    if sector == "Ethylene":
+        return "Ethylene Sector"
+
     return None
 
 
@@ -110,6 +113,7 @@ desired_order = [
     "Demand",
     "Synthetic FT",
     "Synthetic NG",
+    "Ethylene Sector",
     "Electrolyzer",
     "NG CCS H2",
     "BECCS H2",
@@ -192,6 +196,22 @@ print(macro_combined_data)
 
 
 # ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario
+# ---------------------------------------------------------------------
+print("Hydrogen balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} EJ, "
+        f"Demand={total_negative:+.4f} EJ, "
+        f"Net={net:+.4f} EJ  [{status}]"
+    )
+
+# ---------------------------------------------------------------------
 # Plot settings
 # ---------------------------------------------------------------------
 
@@ -201,6 +221,7 @@ category_colors = {
     "BECCS H2": "seagreen",
     "Synthetic FT": "purple",
     "Synthetic NG": "violet",
+    "Ethylene Sector": "#e8630a",
     "Demand": "bisque",
 }
 
@@ -210,6 +231,7 @@ category_names = {
     "BECCS H2": "BECCS H2",
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",
+    "Ethylene Sector": "Ethylene Sector",
     "Demand": "Demand",
 }
 

@@ -8,7 +8,7 @@ import os
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, dolphyn_results_folder, scenario_names, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_results_folder
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
@@ -18,8 +18,10 @@ conversion_factor = MWH_TO_EJ
 mwh_h2_p_tonne_h2 = 39.39
 
 dolphyn_scenario_paths = {
-    "Ethylene_Case": "Ethylene_Case",
+    "ethylene_only_test": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test",
 }
+
+scenario_names = list(dolphyn_scenario_paths.keys())
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -33,7 +35,7 @@ def read_scenario_csvs(relative_path):
     scenario_dfs = {}
 
     for scen, scen_folder in dolphyn_scenario_paths.items():
-        path = os.path.join(dolphyn_base_dir, scen_folder, relative_path)
+        path = os.path.join(scen_folder, relative_path)
 
         if not os.path.exists(path):
             raise FileNotFoundError(f"File not found for {scen}: {path}")
@@ -59,7 +61,7 @@ def read_process_csvs(relative_path):
     scenario_dfs = {}
 
     for scen, scen_folder in dolphyn_scenario_paths.items():
-        path = os.path.join(dolphyn_base_dir, scen_folder, relative_path)
+        path = os.path.join(scen_folder, relative_path)
 
         if not os.path.exists(path):
             raise FileNotFoundError(f"Process file not found for {scen}: {path}")
@@ -396,9 +398,11 @@ syn_ng_df_combined, _ = read_scenario_csvs(
 
 # ADD RETROFIT AND STUFF LATER
 ethylene_df_combined, _ = read_scenario_csvs(
-    f'{dolphyn_results_folder}/Results_Ethylene/Ethylene_capacity.csv'  # adjust path to match actual output
+    "Results_Ethylene/Ethylene_capacity.csv"
 )
-ethylene_process_dfs = read_process_csvs("Ethylene_Resources.csv")  # adjust filename
+_eth_df = pd.read_csv(os.path.join(dolphyn_scenario_paths[scenario_names[0]], "Ethylene_Resources.csv"))
+_eth_df.columns = _eth_df.columns.str.strip()
+ethylene_process_dfs = {scenario_names[0]: _eth_df}
 
 # ---------------------------------------------------------------------
 # Load Dolphyn process-parameter files
@@ -437,8 +441,7 @@ hsc_aggregated_data = aggregate_by_scenario_category(
 # ---------------------------------------------------------------------
 eth_h2_production_ej = {}
 for scen_short, scen_folder in dolphyn_scenario_paths.items():
-    scenario_dir = os.path.join(dolphyn_base_dir, scen_folder)
-    eth_h2_production_ej[scen_short] = compute_ethylene_h2_production_ej(scenario_dir)
+    eth_h2_production_ej[scen_short] = compute_ethylene_h2_production_ej(scen_folder)
     print('ethylene_production', eth_h2_production_ej[scen_short])
 
 eth_production_df = pd.DataFrame.from_dict(
@@ -491,11 +494,11 @@ ethylene_aggregated_data = aggregate_by_scenario_category(
 # ---------------------------------------------------------------------
 
 retrofit_df = load_ethylene_retrofit_balance(
-    csv_path=os.path.join(dolphyn_base_dir, dolphyn_scenario_paths["Ethylene_Case"], dolphyn_results_folder, "Results_Ethylene", "Ethylene_Retrofit_Balance.csv"),
+    csv_path=os.path.join(dolphyn_scenario_paths[scenario_names[0]], dolphyn_results_folder, "Results_Ethylene", "Ethylene_Retrofit_Balance.csv"),
     assets=H2_ASSETS,
     resource_mapping=RESOURCE_MAPPING,
 )
-retrofit_df["Scenario"] = "Ethylene_Case"
+retrofit_df["Scenario"] = scenario_names[0]
 retrofit_df["Resource_Category"] = "Steam Cracker Ethylene Consumption"
 
 # Merge on BOTH Resource and Zone so we pull the right zone-specific parameters
@@ -608,11 +611,7 @@ syn_ng_aggregated_data = aggregate_by_scenario_category(
 dolphyn_h2_demand_ej = {}
 
 for scen_short, scen_folder in dolphyn_scenario_paths.items():
-    scenario_dir = os.path.join(dolphyn_base_dir, scen_folder)
-
-    dolphyn_h2_demand_ej[scen_short] = compute_dolphyn_h2_demand_ej(
-        scenario_dir
-    )
+    dolphyn_h2_demand_ej[scen_short] = compute_dolphyn_h2_demand_ej(scen_folder)
 
 demand_data = {
     scen: -dolphyn_h2_demand_ej[scen]
@@ -723,8 +722,8 @@ ax.set_ylabel("")
 ax.set_title("H2 Balance (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(-1, 1)
-ax.set_xticks([-1, 0,1])
+ax.set_xlim(-50, 50)
+ax.set_xticks([-40, -20, 0, 20, 40])
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top

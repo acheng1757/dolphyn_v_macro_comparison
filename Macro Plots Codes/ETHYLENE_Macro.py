@@ -22,7 +22,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "ethylene_only_test": f"ethylene_only_test/{macro_results_folder}/results",
+    "results_168_ethylene_only": f"try_again_5_31/{macro_results_folder}/results",
 }
 
 # Ethylene flows in flows.csv are already in tonnes — no conversion needed.
@@ -311,6 +311,23 @@ macro_combined_data = (
 
 print("\nMACRO ethylene balance by scenario (tonnes):")
 print(macro_combined_data)
+
+
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario
+# ---------------------------------------------------------------------
+print("Ethylene balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} tonnes, "
+        f"Demand={total_negative:+.4f} tonnes, "
+        f"Net={net:+.4f} tonnes  [{status}]"
+    )
 
 
 # ---------------------------------------------------------------------

@@ -2,7 +2,6 @@ import os
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
-import sys
 
 # ---------------------------------------------------------------------
 # Global settings
@@ -11,28 +10,22 @@ import sys
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
-scenario_names = ["HB-HS", "HB-LS", "LB-HS", "LB-LS"]
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Step_1_Process_Macro_Flows_and_Balance_Demand import (
+    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_results_folder, scenario_names,
+)
 
 MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir
-
 dolphyn_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    scenario_names[0]: f"clean_slate_5_25/{macro_results_folder}/results",
 }
-
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -269,6 +262,12 @@ def map_macro_power_category(row):
     # Bioenergy electricity consumption or credit
     if sector == "Bioenergy":
         return "Bioenergy Input"
+
+    if sector == "Ethanol":
+        return "Ethanol Input"
+
+    if sector == "Ethylene":
+        return "Ethylene Input"
 
     # Synthetic fuels
     if sector == "Synthetic fuels":
@@ -672,6 +671,8 @@ desired_order = [
     "H2 Production",
     "Sorbent DAC Input",
     "Bioenergy Input",
+    "Ethylene Input",
+    "Ethanol Input",
     "Synthetic FT",
     "Synthetic NG",
     "Hydro",
@@ -780,6 +781,8 @@ category_colors = {
     "Wind": "dodgerblue",
     "Sorbent DAC Input": "darkblue",
     "Bioenergy Input": "seagreen",
+    "Ethylene Input": "#e8630a",
+    "Ethanol Input": "#4caf72",
     "Synthetic NG": "violet",
     "Synthetic FT": "purple",
     "H2 Production": "lightgreen",
@@ -793,6 +796,8 @@ category_names = {
     "Synthetic NG": "Syn. NG",
     "Bioenergy Input": "Biofuel Prod.",
     "Sorbent DAC Input": "Sorbent DAC",
+    "Ethylene Input": "Ethylene Sector",
+    "Ethanol Input": "Ethanol Sector",
     "Hydro": "Hydro",
     "Nuclear": "Nuclear",
     "NG": "NG",

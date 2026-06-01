@@ -7,7 +7,7 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
@@ -16,10 +16,7 @@ MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
 }
 
 
@@ -65,6 +62,12 @@ def map_macro_power_category(row):
     # Bioenergy electricity consumption or credit
     if sector == "Bioenergy":
         return "Bioenergy Input"
+    
+    if sector == "Ethanol":
+        return "Ethanol Input"
+    
+    if sector == "Ethylene":
+        return "Ethylene Input"
 
     # Synthetic fuels
     if sector == "Synthetic fuels":
@@ -92,6 +95,8 @@ desired_order = [
     "H2 Production",
     "Sorbent DAC Input",
     "Bioenergy Input",
+    "Ethylene Input",
+    "Ethanol Input",
     "Synthetic FT",
     "Synthetic NG",
     "Hydro",
@@ -177,6 +182,21 @@ macro_combined_data = macro_combined_data[desired_order]
 print("\nMACRO electricity balance by scenario (EJ):")
 print(macro_combined_data)
 
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario
+# ---------------------------------------------------------------------
+print("Electricity balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} EJ, "
+        f"Demand={total_negative:+.4f} EJ, "
+        f"Net={net:+.4f} EJ  [{status}]"
+    )
 
 # ---------------------------------------------------------------------
 # Plot settings
@@ -191,6 +211,8 @@ category_colors = {
     "Wind": "dodgerblue",
     "Sorbent DAC Input": "darkblue",
     "Bioenergy Input": "seagreen",
+    "Ethylene Input": "#e8630a",
+    "Ethanol Input": "#4caf72",
     "Synthetic NG": "violet",
     "Synthetic FT": "purple",
     "H2 Production": "lightgreen",
@@ -204,6 +226,8 @@ category_names = {
     "Synthetic NG": "Syn. NG",
     "Bioenergy Input": "Biofuel Prod.",
     "Sorbent DAC Input": "Sorbent DAC",
+    "Ethylene Input": "Ethylene Sector",
+    "Ethanol Input": "Ethanol Sector",
     "Hydro": "Hydro",
     "Nuclear": "Nuclear",
     "NG": "NG",

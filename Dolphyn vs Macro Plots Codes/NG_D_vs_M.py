@@ -5,7 +5,6 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
-
 # ---------------------------------------------------------------------
 # Global settings
 # ---------------------------------------------------------------------
@@ -13,23 +12,18 @@ import sys
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
-scenario_names = ["HB-HS", "HB-LS", "LB-HS", "LB-LS"]
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir
+from Step_1_Process_Macro_Flows_and_Balance_Demand import (
+    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_results_folder, scenario_names,
+)
 
 dolphyn_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    "results_1848h_all": f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    "results_1848h_all": f"clean_slate_5_25/results_1848h_all/results",
 }
 
 # Dolphyn NG_Balance values are treated as MMBtu.
@@ -37,7 +31,6 @@ MMBTU_TO_EJ = 0.293071 * 3.6e-9
 
 # MACRO annual_flow values are treated as MWh, consistent with previous plots.
 MWH_TO_EJ = 3.6e-9
-
 
 # ---------------------------------------------------------------------
 # Plot categories
@@ -52,6 +45,8 @@ columns_of_interest = [
     "H2",
     "CSC",
     "BESC",
+    "Ethylene",
+    "Ethanol",
 ]
 
 # Desired plotting order
@@ -61,6 +56,8 @@ desired_order = [
     "H2",
     "CSC",
     "BESC",
+    "Ethylene",
+    "Ethanol",
     "Syn_NG",
     "Conventional_NG",
 ]
@@ -73,6 +70,8 @@ category_colors = {
     "H2": "deepskyblue",
     "CSC": "darkblue",
     "BESC": "seagreen",
+    "Ethylene": "#e8630a",
+    "Ethanol": "#4caf72",
 }
 
 category_names = {
@@ -83,6 +82,8 @@ category_names = {
     "H2": "H2 Sector",
     "CSC": "Solvent DAC",
     "BESC": "Bio NG",
+    "Ethylene": "Ethylene Sector",
+    "Ethanol": "Ethanol Sector",
 }
 
 
@@ -90,32 +91,14 @@ category_names = {
 # Dolphyn NG balance
 # ---------------------------------------------------------------------
 
-dolphyn_file_paths = [
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-HS"],
-        "Results/Results_NG/NG_Balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-LS"],
-        "Results/Results_NG/NG_Balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-HS"],
-        "Results/Results_NG/NG_Balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-LS"],
-        "Results/Results_NG/NG_Balance.csv",
-    ),
-]
-
 global_values_per_scenario = {}
 
-for path, scenario in zip(dolphyn_file_paths, scenario_names):
+for scenario, scen_folder in dolphyn_scenario_paths.items():
+    path = os.path.join(
+        dolphyn_base_dir,
+        scen_folder,
+        "Results_NG/NG_Balance.csv",
+    )
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dolphyn NG balance file not found: {path}")
 
@@ -168,8 +151,13 @@ def map_macro_ng_category(row):
       - demand is Category = NG End Use
       - fossil purchase is Category = NG Fossil Upstream
     """
+
     sector = str(row.get("Sector", "")).strip()
     category = str(row.get("Category", "")).strip()
+
+    # NG demand from demand.csv
+    if sector == "Demand":
+        return "NG_Demand"
 
     # NG demand / end use
     if category == "NG End Use":
@@ -198,6 +186,12 @@ def map_macro_ng_category(row):
     # Bioenergy-sector NG flows
     if sector == "Bioenergy":
         return "BESC"
+
+    if sector == "Ethylene":
+        return "Ethylene"
+
+    if sector == "Ethanol":
+        return "Ethanol"
 
     return None
 

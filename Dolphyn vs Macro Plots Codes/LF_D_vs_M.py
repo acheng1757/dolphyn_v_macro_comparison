@@ -12,137 +12,39 @@ plt.rcParams["font.family"] = "Arial"
 # Paths and scenarios
 # ---------------------------------------------------------------------
 
-scenario_names = ["HB-HS", "HB-LS", "LB-HS", "LB-LS"]
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir
+from Step_1_Process_Macro_Flows_and_Balance_Demand import (
+    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_results_folder, scenario_names,
+)
 
 dolphyn_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    scenario_names[0]: f"clean_slate_5_25/{macro_results_folder}/results",
 }
 
+_scen_folder = dolphyn_scenario_paths[scenario_names[0]]
+
 bf_results_files = [
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-HS"],
-        "Results/Results_BESC/BESC_Bio_LF_capacity.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-LS"],
-        "Results/Results_BESC/BESC_Bio_LF_capacity.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-HS"],
-        "Results/Results_BESC/BESC_Bio_LF_capacity.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-LS"],
-        "Results/Results_BESC/BESC_Bio_LF_capacity.csv",
-    ),
+    os.path.join(dolphyn_base_dir, _scen_folder, "Results_BESC/BESC_Bio_LF_capacity.csv"),
 ]
 
 sf_results_files = [
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-HS"],
-        "Results/Results_LF/Synfuel_capacity.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-LS"],
-        "Results/Results_LF/Synfuel_capacity.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-HS"],
-        "Results/Results_LF/Synfuel_capacity.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-LS"],
-        "Results/Results_LF/Synfuel_capacity.csv",
-    ),
+    os.path.join(dolphyn_base_dir, _scen_folder, "Results_LF/Synfuel_capacity.csv"),
 ]
 
 fuels_balance_files = {
     "Gasoline": [
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["HB-HS"],
-            "Results/Results_LF/LF_Gasoline_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["HB-LS"],
-            "Results/Results_LF/LF_Gasoline_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["LB-HS"],
-            "Results/Results_LF/LF_Gasoline_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["LB-LS"],
-            "Results/Results_LF/LF_Gasoline_balance.csv",
-        ),
+        os.path.join(dolphyn_base_dir, _scen_folder, "Results_LF/LF_Gasoline_balance.csv"),
     ],
     "Jetfuel": [
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["HB-HS"],
-            "Results/Results_LF/LF_Jetfuel_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["HB-LS"],
-            "Results/Results_LF/LF_Jetfuel_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["LB-HS"],
-            "Results/Results_LF/LF_Jetfuel_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["LB-LS"],
-            "Results/Results_LF/LF_Jetfuel_balance.csv",
-        ),
+        os.path.join(dolphyn_base_dir, _scen_folder, "Results_LF/LF_Jetfuel_balance.csv"),
     ],
     "Diesel": [
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["HB-HS"],
-            "Results/Results_LF/LF_Diesel_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["HB-LS"],
-            "Results/Results_LF/LF_Diesel_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["LB-HS"],
-            "Results/Results_LF/LF_Diesel_balance.csv",
-        ),
-        os.path.join(
-            dolphyn_base_dir,
-            dolphyn_scenario_paths["LB-LS"],
-            "Results/Results_LF/LF_Diesel_balance.csv",
-        ),
+        os.path.join(dolphyn_base_dir, _scen_folder, "Results_LF/LF_Diesel_balance.csv"),
     ],
 }
 
@@ -287,8 +189,7 @@ dolphyn_combined_data = sf_aggregated.join(
     how="left",
 ).fillna(0)
 
-scenario_order = ["HB-HS", "HB-LS", "LB-HS", "LB-LS"]
-dolphyn_combined_data = dolphyn_combined_data.loc[scenario_order]
+dolphyn_combined_data = dolphyn_combined_data.reindex(scenario_names).fillna(0)
 
 
 # ---------------------------------------------------------------------
@@ -304,6 +205,7 @@ desired_order = [
     "Bio FT (High Diesel) High CCS",
     "SFT Non CCS",
     "SFT CCS",
+    "Ethylene Gasoline",
     "Fossil",
 ]
 
@@ -322,6 +224,7 @@ category_colors = {
     "Bio FT (High Diesel) High CCS": "forestgreen",
     "SFT Non CCS": "purple",
     "SFT CCS": "indigo",
+    "Ethylene Gasoline": "#e8630a",
     "Fossil": "grey",
 }
 
@@ -334,6 +237,7 @@ label_map = {
     "Bio FT (High Diesel) High CCS": "Bio-FT (Diesel) CC99",
     "SFT Non CCS": "Syn-FT (Jet)",
     "SFT CCS": "Syn-FT (Jet) CC99",
+    "Ethylene Gasoline": "Ethylene Gasoline",
     "Fossil": "Fossil Liquids",
 }
 
@@ -443,6 +347,10 @@ def map_macro_lf_category(row):
 
         return None
 
+    # Exclude crude-oil input edges (negative resource consumption, not liquid fuel supply)
+    if category == "Fossil Liquid Fuels":
+        return None
+
     # Fossil liquid fuels
     if (
         "fossil" in text
@@ -451,6 +359,9 @@ def map_macro_lf_category(row):
         or "oil" in text
     ):
         return "Fossil"
+
+    if sector == "Ethylene":
+        return "Ethylene Gasoline"
 
     return None
 

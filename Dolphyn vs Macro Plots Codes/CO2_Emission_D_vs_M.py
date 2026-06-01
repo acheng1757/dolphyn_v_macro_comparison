@@ -14,33 +14,23 @@ import sys
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
-scenario_names = ["HB-HS", "HB-LS", "LB-HS", "LB-LS"]
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir
+from Step_1_Process_Macro_Flows_and_Balance_Demand import (
+    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_results_folder, scenario_names,
+)
 
 dolphyn_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    scenario_names[0]: f"ethylene_only_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    scenario_names[0]: f"results_1848h_ethylene_only/{macro_results_folder}/results",
 }
 
-# Used to locate asset json files.
-# This assumes assets/ is directly under each Macro scenario input folder:
-# Macro/NineZones_High_Biomass_High_CO2/assets/...
+# Used to locate asset json files under the Macro scenario input folder.
 macro_input_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    scenario_names[0]: "ethylene_only_test",
 }
 
 TONNE_TO_MT = 1e-6
@@ -52,32 +42,41 @@ TONNE_TO_MT = 1e-6
 
 desired_order = [
     "Biomass Capture",
+    "Ethanol Biomass Capture",
     "DAC Capture",
     "Conventional Liquid Fuels",
     "Conventional NG",
     "Synthetic Fuels and processes",
     "Synthetic NG and processes",
     "Biofuels and processes",
+    "Ethylene and processes",
+    "Ethanol and processes",
 ]
 
 category_colors = {
     "Biomass Capture": "olivedrab",
+    "Ethanol Biomass Capture": "#1a6e30",
     "DAC Capture": "darkblue",
     "Conventional Liquid Fuels": "grey",
     "Conventional NG": "lightgrey",
     "Synthetic Fuels and processes": "purple",
     "Synthetic NG and processes": "violet",
     "Biofuels and processes": "lightgreen",
+    "Ethylene and processes": "#e8630a",
+    "Ethanol and processes": "#4caf72",
 }
 
 category_names = {
     "Biomass Capture": "Biomass",
+    "Ethanol Biomass Capture": "Ethanol Biomass",
     "DAC Capture": "DAC",
     "Conventional Liquid Fuels": "Fossil Liquid Fuels",
     "Conventional NG": "Fossil NG",
     "Synthetic Fuels and processes": "Synthetic Liquid Fuels",
     "Synthetic NG and processes": "Synthetic NG",
     "Biofuels and processes": "Biofuels",
+    "Ethylene and processes": "Ethylene",
+    "Ethanol and processes": "Ethanol",
 }
 
 
@@ -139,32 +138,14 @@ dolphyn_combine_mapping = {
     "Synfuels": "Synthetic Fuels and processes",
 }
 
-dolphyn_file_paths = [
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-HS"],
-        "Results/Results_CSC/System_CO2_emission_balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["HB-LS"],
-        "Results/Results_CSC/System_CO2_emission_balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-HS"],
-        "Results/Results_CSC/System_CO2_emission_balance.csv",
-    ),
-    os.path.join(
-        dolphyn_base_dir,
-        dolphyn_scenario_paths["LB-LS"],
-        "Results/Results_CSC/System_CO2_emission_balance.csv",
-    ),
-]
-
 global_values_per_scenario = {}
 
-for path, scenario in zip(dolphyn_file_paths, scenario_names):
+for scenario, scen_folder in dolphyn_scenario_paths.items():
+    path = os.path.join(
+        dolphyn_base_dir,
+        scen_folder,
+        "Results_CSC/Zone_CO2_emission_balance.csv",
+    )
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dolphyn CO2 emission balance file not found: {path}")
 
@@ -327,7 +308,7 @@ def map_macro_direct_co2_category(row):
 
     if sector == "Bioenergy":
         # Positive process emissions are added to biofuels/processes.
-        if "co2_emission_edge" in edge_lower:
+        if any(s in edge_lower for s in ("co2_emission_edge", "co2_process_emission_edge", "co2_fuel_emission_edge")):
             return "Biofuels and processes"
 
         # Negative biogenic CO2 flows are the biomass capture term.
@@ -347,6 +328,16 @@ def map_macro_direct_co2_category(row):
 
     if sector == "Hydrogen":
         return "Conventional NG"
+
+    if sector == "Ethylene":
+        return "Ethylene and processes"
+
+    if sector == "Ethanol":
+        if "co2_content_edge" in edge_lower:
+            return "Ethanol Biomass Capture"
+        if any(s in edge_lower for s in ("co2_emission_edge", "co2_process_emission_edge", "co2_fuel_emission_edge")):
+            return "Ethanol and processes"
+        return None
 
     return None
 
@@ -371,6 +362,9 @@ def map_macro_liquid_fuel_source(row):
 
     if sector == "Liquid fuels" and category == "Fossil Petroleum Refinery":
         return "Conventional Liquid Fuels"
+
+    if sector == "Ethylene":
+        return "Ethylene and processes"
 
     return None
 

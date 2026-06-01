@@ -11,26 +11,20 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
 }
 
 # Used to locate asset json files.
 # This assumes assets/ is directly under each Macro scenario input folder:
 # Macro/NineZones_High_Biomass_High_CO2/assets/...
 macro_input_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    "clean_slate_5_25": "clean_slate_5_25",
 }
 
 TONNE_TO_MT = 1e-6
@@ -42,32 +36,41 @@ TONNE_TO_MT = 1e-6
 
 desired_order = [
     "Biomass Capture",
+    "Ethanol Biomass Capture",
     "DAC Capture",
     "Conventional Liquid Fuels",
     "Conventional NG",
     "Synthetic Fuels and processes",
     "Synthetic NG and processes",
     "Biofuels and processes",
+    "Ethylene and processes",
+    "Ethanol and processes",
 ]
 
 category_colors = {
     "Biomass Capture": "olivedrab",
+    "Ethanol Biomass Capture": "#1a6e30",
     "DAC Capture": "darkblue",
     "Conventional Liquid Fuels": "grey",
     "Conventional NG": "lightgrey",
     "Synthetic Fuels and processes": "purple",
     "Synthetic NG and processes": "violet",
     "Biofuels and processes": "lightgreen",
+    "Ethylene and processes": "#e8630a",
+    "Ethanol and processes": "#4caf72",
 }
 
 category_names = {
     "Biomass Capture": "Biomass",
+    "Ethanol Biomass Capture": "Ethanol Biomass",
     "DAC Capture": "DAC",
     "Conventional Liquid Fuels": "Fossil Liquid Fuels",
     "Conventional NG": "Fossil NG",
     "Synthetic Fuels and processes": "Synthetic Liquid Fuels",
     "Synthetic NG and processes": "Synthetic NG",
     "Biofuels and processes": "Biofuels",
+    "Ethylene and processes": "Ethylene",
+    "Ethanol and processes": "Ethanol",
 }
 
 
@@ -198,7 +201,7 @@ def map_macro_direct_co2_category(row):
 
     if sector == "Bioenergy":
         # Positive process emissions are added to biofuels/processes.
-        if "co2_emission_edge" in edge_lower:
+        if any(s in edge_lower for s in ("co2_emission_edge", "co2_process_emission_edge", "co2_fuel_emission_edge")):
             return "Biofuels and processes"
 
         # Negative biogenic CO2 flows are the biomass capture term.
@@ -218,6 +221,16 @@ def map_macro_direct_co2_category(row):
 
     if sector == "Hydrogen":
         return "Conventional NG"
+
+    if sector == "Ethylene":
+        return "Ethylene and processes"
+
+    if sector == "Ethanol":
+        if "co2_content_edge" in edge_lower:
+            return "Ethanol Biomass Capture"
+        if any(s in edge_lower for s in ("co2_emission_edge", "co2_process_emission_edge", "co2_fuel_emission_edge")):
+            return "Ethanol and processes"
+        return None
 
     return None
 
@@ -242,6 +255,9 @@ def map_macro_liquid_fuel_source(row):
 
     if sector == "Liquid fuels" and category == "Fossil Petroleum Refinery":
         return "Conventional Liquid Fuels"
+
+    if sector == "Ethylene":
+        return "Ethylene and processes"
 
     return None
 
@@ -507,6 +523,22 @@ macro_combined_data = macro_combined_data[desired_order]
 
 print("\nMACRO CO2 emission balance by scenario (Mt):")
 print(macro_combined_data)
+
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario
+# ---------------------------------------------------------------------
+print("CO2 Emissions balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} tonnes, "
+        f"Demand={total_negative:+.4f} tonnes, "
+        f"Net={net:+.4f} tonnes  [{status}]"
+    )
 
 print("\nMACRO reconstructed emission components:")
 print(

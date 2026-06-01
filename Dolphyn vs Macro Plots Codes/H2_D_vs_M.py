@@ -10,28 +10,23 @@ import sys
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
-scenario_names = ["HB-HS", "HB-LS", "LB-HS", "LB-LS"]
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Step_1_Process_Macro_Flows_and_Balance_Demand import (
+    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_results_folder, scenario_names,
+)
 
 MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, macro_base_dir
+mwh_h2_p_t_h2 = 39.39
 
 dolphyn_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2",
+    scenario_names[0]: f'all_demand_test/{dolphyn_results_folder}',
 }
 
 macro_scenario_paths = {
-    "HB-HS": "NineZones_High_Biomass_High_CO2/results_001/results",
-    "HB-LS": "NineZones_High_Biomass_Low_CO2/results_001/results",
-    "LB-HS": "NineZones_Low_Biomass_High_CO2/results_001/results",
-    "LB-LS": "NineZones_Low_Biomass_Low_CO2/results_001/results",
+    scenario_names[0]: f'clean_slate_5_25/{macro_results_folder}/results',
 }
-
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -63,7 +58,7 @@ def read_scenario_csvs(relative_path):
     return combined, scenario_dfs
 
 
-def read_process_csvs(relative_path):
+def read_process_csvs(folder_name):
     """
     Read one process-parameter CSV with the same relative path from each
     Dolphyn scenario folder.
@@ -71,7 +66,7 @@ def read_process_csvs(relative_path):
     scenario_dfs = {}
 
     for scen, scen_folder in dolphyn_scenario_paths.items():
-        path = os.path.join(dolphyn_base_dir, scen_folder, relative_path)
+        path = os.path.join(dolphyn_base_dir, scen_folder, folder_name)
 
         if not os.path.exists(path):
             raise FileNotFoundError(f"Process file not found for {scen}: {path}")
@@ -125,7 +120,6 @@ def aggregate_by_scenario_category(df, value_col):
         .fillna(0.0)
     )
 
-
 def read_time_weights(time_weights_path):
     """
     Read Dolphyn time_weights.csv and return a 1-D Series of hourly weights.
@@ -170,7 +164,6 @@ def read_time_weights(time_weights_path):
 
     return pd.to_numeric(weights_df[weight_col], errors="coerce").fillna(0.0)
 
-
 def compute_dolphyn_h2_demand_ej(scenario_dir):
     """
     Compute total weighted H2 demand for one Dolphyn scenario.
@@ -189,7 +182,7 @@ def compute_dolphyn_h2_demand_ej(scenario_dir):
 
     time_weights_path = os.path.join(
         scenario_dir,
-        "Results",
+        #"Results",
         "time_weights.csv",
     )
 
@@ -204,7 +197,7 @@ def compute_dolphyn_h2_demand_ej(scenario_dir):
 
     h2_load_cols = [
         c for c in h2_load_df.columns
-        if c.lower().startswith("load_h2_mw")
+        if c.lower().startswith("load_h2_tonne")
     ]
 
     if not h2_load_cols:
@@ -218,6 +211,7 @@ def compute_dolphyn_h2_demand_ej(scenario_dir):
         .apply(pd.to_numeric, errors="coerce")
         .fillna(0.0)
         .sum(axis=1)
+        * mwh_h2_p_t_h2
     )
 
     time_weights = read_time_weights(time_weights_path)
@@ -233,7 +227,6 @@ def compute_dolphyn_h2_demand_ej(scenario_dir):
     total_h2_demand_ej = total_h2_demand_mwh * MWH_TO_EJ
 
     return total_h2_demand_ej
-
 
 def categorize_dolphyn_h2_resource(resource):
     """
@@ -328,8 +321,147 @@ def map_macro_h2_category(row):
 
         return None
 
+    if sector == "Ethylene":
+        return "Ethylene Sector"
+
     return None
 
+def compute_ethylene_h2_production_ej(scenario_dir):
+    """
+    Read H2 production from ethylene process from HSC_h2_balance.csv.
+    Sums 'Production from Ethylene Process' across all zones from the AnnualSum row.
+    """
+    path = os.path.join(scenario_dir, "Results_HSC", "HSC_h2_balance.csv")
+    
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"HSC_h2_balance.csv not found: {path}")
+    
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+    
+    # Get the AnnualSum row
+    annual_row = df[df["Unnamed: 0"] == "AnnualSum"]
+    
+    # Sum across all zone columns for this term
+    eth_cols = [c for c in df.columns if c.startswith("Production from Ethylene Process")]
+    
+    total_tonnes = (
+        annual_row[eth_cols]
+        .apply(pd.to_numeric, errors="coerce")
+        .fillna(0.0)
+        .values.sum()
+    )
+    
+    return total_tonnes * MWH_TO_EJ * mwh_h2_p_t_h2
+
+H2_ASSETS = ["TSC+H2in:CH4", "TSC+H2in"]
+
+# Maps CSV asset names → Ethylene_Resource keys in the process parameter files
+RESOURCE_MAPPING = {
+    "TSC+H2in:CH4": "F-H2in-CH4out",
+    "TSC+H2in":     "F-H2in",
+}
+
+def load_ethylene_retrofit_balance(
+    csv_path: str,
+    assets: list[str] = H2_ASSETS,
+    resource_mapping: dict[str, str] = RESOURCE_MAPPING,
+) -> pd.DataFrame:
+    """
+    Parse Ethylene_Retrofit_Balance.csv into a long-form DataFrame suitable
+    for merging into the ethylene aggregation pipeline.
+
+    The raw CSV has one column per (asset, zone) pair.  Base columns are named
+    after the asset; repeated zones get pandas' automatic de-duplication suffix
+    (.1, .2, …).  Row 0 carries the zone number; row 1 is the annual sum;
+    rows 2+ are time-steps t1…tN.
+
+    resource_mapping translates CSV asset names to the Ethylene_Resource keys
+    used in the process parameter files (e.g. "TSC+H2in:CH4" → "F-H2in-CH4out").
+
+    Returns columns:
+        Resource                  – mapped process key (e.g. "F-H2in-CH4out")
+        Zone                      – zone number (int)
+        AnnualSum                 – annual sum value for that asset/zone
+        Annual_ethane_Consumption – negated AnnualSum (sign convention for H2 calc)
+        Time                      – time-step label ("AnnualSum", "t1", …)
+        Value                     – raw balance value
+    """
+    raw = pd.read_csv(csv_path, header=0)
+    time_col = raw.columns[0]
+
+    records = []
+
+    for base_asset in assets:
+        asset_cols = [
+            c for c in raw.columns
+            if c == base_asset or c.startswith(base_asset + ".")
+        ]
+
+        for col in asset_cols:
+            zone = int(raw.loc[raw[time_col] == "Zone", col].values[0])
+
+            for _, row in raw[raw[time_col] != "Zone"].iterrows():
+                records.append(
+                    {
+                        "Resource": base_asset,   # raw name; mapped below
+                        "Zone":     zone,
+                        "Time":     row[time_col],
+                        "Value":    pd.to_numeric(row[col], errors="coerce"),
+                    }
+                )
+
+    df = pd.DataFrame(records)
+
+    # Pivot AnnualSum out as its own column
+    annual = (
+        df[df["Time"] == "AnnualSum"]
+        .rename(columns={"Value": "AnnualSum"})
+        [["Resource", "Zone", "AnnualSum"]]
+    )
+    df = df.merge(annual, on=["Resource", "Zone"], how="left")
+
+    # Apply name mapping BEFORE the downstream merge so process keys align
+    if resource_mapping:
+        df["Resource"] = df["Resource"].replace(resource_mapping)
+
+    # Sign convention: consumption is negative in the balance → flip for merge
+    df["Annual_ethane_Consumption"] = df["AnnualSum"]
+
+    return df
+
+def merge_scenario_process_data_by_zone(
+    result_df,
+    process_dfs,
+    result_key,
+    process_key,
+    result_zone_key,
+    process_zone_key,
+    process_cols,
+):
+    """
+    Like merge_scenario_process_data but joins on both resource name and zone,
+    needed for retrofit assets where parameters vary by zone.
+    """
+    merged_tables = []
+
+    for scen in scenario_names:
+        result_scen = result_df[result_df["Scenario"] == scen].copy()
+        process_scen = process_dfs[scen][
+            [process_key, process_zone_key] + process_cols
+        ].copy()
+
+        merged = pd.merge(
+            result_scen,
+            process_scen,
+            left_on=[result_key, result_zone_key],
+            right_on=[process_key, process_zone_key],
+            how="left",
+        )
+
+        merged_tables.append(merged)
+
+    return pd.concat(merged_tables, ignore_index=True)
 
 # ---------------------------------------------------------------------
 # Load Dolphyn H2-related result files
@@ -337,26 +469,39 @@ def map_macro_h2_category(row):
 
 # H2 production file
 hsc_df_combined, _ = read_scenario_csvs(
-    "Results/Results_HSC/HSC_generation_storage_capacity.csv"
+    "Results_HSC/HSC_generation_storage_capacity.csv"
 )
 
 # Synthetic liquid fuels
 sf_df_combined, _ = read_scenario_csvs(
-    "Results/Results_LF/Synfuel_capacity.csv"
+    "Results_LF/Synfuel_capacity.csv"
 )
 
 # Synthetic natural gas
 syn_ng_df_combined, _ = read_scenario_csvs(
-    "Results/Results_NG/Syn_ng_capacity.csv"
+    "Results_NG/Syn_ng_capacity.csv"
 )
+
+# ADD RETROFIT AND STUFF LATER
+ethylene_df_combined, _ = read_scenario_csvs(
+    "Results_Ethylene/Ethylene_capacity.csv"
+)
+_eth_df = pd.read_csv(os.path.join(dolphyn_base_dir, "all_demand_test", "Ethylene_Resources.csv"))
+_eth_df.columns = _eth_df.columns.str.strip()
+ethylene_process_dfs = {scenario_names[0]: _eth_df}
 
 
 # ---------------------------------------------------------------------
 # Load Dolphyn process-parameter files
 # ---------------------------------------------------------------------
 
-sf_process_dfs = read_process_csvs("LFSC_Synfuel_Resources.csv")
-syn_ng_process_dfs = read_process_csvs("NGSC_Syn_NG_Resources.csv")
+_sf_df = pd.read_csv("/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test/LFSC_Synfuel_Resources.csv")
+_sf_df.columns = _sf_df.columns.str.strip()
+sf_process_dfs = {scenario_names[0]: _sf_df}
+
+_syn_ng_df = pd.read_csv("/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test/NGSC_Syn_NG_Resources.csv")
+_syn_ng_df.columns = _syn_ng_df.columns.str.strip()
+syn_ng_process_dfs = {scenario_names[0]: _syn_ng_df}
 
 
 # ---------------------------------------------------------------------
@@ -374,6 +519,7 @@ hsc_filtered = hsc_df_combined[
 hsc_filtered["AnnualGeneration"] = (
     pd.to_numeric(hsc_filtered["AnnualGeneration"], errors="coerce")
     .fillna(0.0)
+    * mwh_h2_p_t_h2
     * conversion_factor
 )
 
@@ -381,7 +527,6 @@ hsc_aggregated_data = aggregate_by_scenario_category(
     hsc_filtered,
     "AnnualGeneration",
 )
-
 
 # ---------------------------------------------------------------------
 # Process Dolphyn synthetic liquid fuels H2 consumption
@@ -394,7 +539,7 @@ sf_merged_combined = merge_scenario_process_data(
     process_dfs=sf_process_dfs,
     result_key="Resource",
     process_key="Syn_Fuel_Resource",
-    process_cols=["mwh_h2_p_tonne_co2"],
+    process_cols=["tonnes_h2_p_tonne_co2"],
 )
 
 sf_merged_combined["Annual_H2_Consumption_EJ"] = (
@@ -403,9 +548,10 @@ sf_merged_combined["Annual_H2_Consumption_EJ"] = (
         errors="coerce",
     ).fillna(0.0)
     * pd.to_numeric(
-        sf_merged_combined["mwh_h2_p_tonne_co2"],
+        sf_merged_combined["tonnes_h2_p_tonne_co2"],
         errors="coerce",
     ).fillna(0.0)
+    * mwh_h2_p_t_h2
     * conversion_factor
 )
 
@@ -413,7 +559,6 @@ sf_aggregated_data = aggregate_by_scenario_category(
     sf_merged_combined,
     "Annual_H2_Consumption_EJ",
 )
-
 
 # ---------------------------------------------------------------------
 # Process Dolphyn synthetic natural gas H2 consumption
@@ -426,7 +571,7 @@ syn_ng_merged_combined = merge_scenario_process_data(
     process_dfs=syn_ng_process_dfs,
     result_key="Resource",
     process_key="Syn_NG_Resource",
-    process_cols=["mwh_h2_p_tonne_co2"],
+    process_cols=["tonnes_h2_p_tonne_co2"],
 )
 
 syn_ng_merged_combined["Annual_H2_Consumption_EJ"] = (
@@ -435,9 +580,10 @@ syn_ng_merged_combined["Annual_H2_Consumption_EJ"] = (
         errors="coerce",
     ).fillna(0.0)
     * pd.to_numeric(
-        syn_ng_merged_combined["mwh_h2_p_tonne_co2"],
+        syn_ng_merged_combined["tonnes_h2_p_tonne_co2"],
         errors="coerce",
     ).fillna(0.0)
+    * mwh_h2_p_t_h2
     * conversion_factor
 )
 
@@ -446,6 +592,120 @@ syn_ng_aggregated_data = aggregate_by_scenario_category(
     "Annual_H2_Consumption_EJ",
 )
 
+# ---------------------------------------------------------------------
+# Process Dolphyn H2 production from Ethylene
+# ---------------------------------------------------------------------
+eth_h2_production_ej = {}
+for scen_short, scen_folder in dolphyn_scenario_paths.items():
+    scenario_dir = os.path.join(dolphyn_base_dir, scen_folder)
+    eth_h2_production_ej[scen_short] = compute_ethylene_h2_production_ej(scenario_dir)
+    print('ethylene_production', eth_h2_production_ej[scen_short])
+
+eth_production_df = pd.DataFrame.from_dict(
+    eth_h2_production_ej,
+    orient="index",
+    columns=["Ethylene Sector"],
+)
+
+# ---------------------------------------------------------------------
+# Process Dolphyn Ethylene H2 consumption from new build assets
+# ---------------------------------------------------------------------
+
+# Exclude the summary Total row and retrofit assets already captured separately
+_RETROFIT_RESOURCES = list(RESOURCE_MAPPING.values())  # ["F-H2in-CH4out", "F-H2in"]
+
+ethylene_newbuild = ethylene_df_combined[
+    (ethylene_df_combined["Resource"] != "Total")
+    & ~ethylene_df_combined["Resource"].isin(_RETROFIT_RESOURCES)
+].copy()
+ethylene_newbuild["Resource_Category"] = "Ethylene Sector"
+
+# Deduplicate process params by resource — parameters don't vary by zone
+eth_params_deduped = {
+    scen: df.drop_duplicates(subset=["Ethylene_Resource"])
+    for scen, df in ethylene_process_dfs.items()
+}
+
+ethylene_merged_combined = merge_scenario_process_data(
+    result_df=ethylene_newbuild,
+    process_dfs=eth_params_deduped,
+    result_key="Resource",
+    process_key="Ethylene_Resource",
+    process_cols=["tonnes_h2in_p_tonne_ethylene"],
+)
+
+# H2 consumed = Annual_Ethylene_Production × tonnes_h2in_p_tonne_ethylene
+# Negative sign so it appears as demand (left of zero) in the H2 balance plot
+ethylene_merged_combined["Annual_H2_Consumption_EJ"] = (
+    -pd.to_numeric(
+        ethylene_merged_combined["Annual_Ethylene_Production"],
+        errors="coerce",
+    ).fillna(0.0)
+    * pd.to_numeric(
+        ethylene_merged_combined["tonnes_h2in_p_tonne_ethylene"],
+        errors="coerce",
+    ).fillna(0.0)
+    * mwh_h2_p_t_h2
+    * conversion_factor
+)
+
+print('ethylene_merged_combined')
+print(ethylene_merged_combined)
+
+ethylene_aggregated_data = aggregate_by_scenario_category(
+    ethylene_merged_combined,
+    "Annual_H2_Consumption_EJ",
+)
+
+# ---------------------------------------------------------------------
+# Process Dolphyn Ethylene H2 consumption from retrofit assets
+# ---------------------------------------------------------------------
+
+retrofit_df = load_ethylene_retrofit_balance(
+    csv_path=os.path.join(dolphyn_base_dir, dolphyn_scenario_paths[scenario_names[0]], "Results_Ethylene", "Ethylene_Retrofit_Balance.csv"),
+    assets=H2_ASSETS,
+    resource_mapping=RESOURCE_MAPPING,
+)
+retrofit_df["Scenario"] = scenario_names[0]
+retrofit_df["Resource_Category"] = "Ethylene Sector"
+
+# Merge on BOTH Resource and Zone so we pull the right zone-specific parameters
+ethylene_retrofit_merged_combined = merge_scenario_process_data_by_zone(
+    result_df=retrofit_df,
+    process_dfs=ethylene_process_dfs,
+    result_key="Resource",
+    process_key="Ethylene_Resource",
+    result_zone_key="Zone",
+    process_zone_key="Zone",
+    process_cols=["tonnes_h2in_p_tonne_ethylene", "tonne_ethane_p_tonne_ethylene"],
+)
+
+# AnnualSum values are positive (ethylene/ethane production); negate so H2
+# consumption appears as demand (negative bar) in the H2 balance plot.
+ethylene_retrofit_merged_combined["Annual_H2_Consumption_EJ"] = (
+    -pd.to_numeric(
+        ethylene_retrofit_merged_combined["Annual_ethane_Consumption"],
+        errors="coerce",
+    ).fillna(0.0)
+    * pd.to_numeric(
+        ethylene_retrofit_merged_combined["tonnes_h2in_p_tonne_ethylene"],
+        errors="coerce",
+    ).fillna(0.0)
+    / pd.to_numeric(
+        ethylene_retrofit_merged_combined["tonne_ethane_p_tonne_ethylene"],
+        errors="coerce",
+    ).fillna(0.0)
+    * mwh_h2_p_t_h2
+    * conversion_factor
+)
+
+print("ethylene_retrofit_merged_combined")
+print(ethylene_retrofit_merged_combined)
+
+ethylene_retrofit_aggregated_data = aggregate_by_scenario_category(
+    ethylene_retrofit_merged_combined,
+    "Annual_H2_Consumption_EJ",
+)
 
 # ---------------------------------------------------------------------
 # Dolphyn H2 demand from TDR_Results/HSC_load_data.csv and Results/time_weights.csv
@@ -486,6 +746,7 @@ combined_data = pd.concat(
         demand_df,
         sf_aggregated_data,
         syn_ng_aggregated_data,
+        eth_production_df,
     ],
     axis=1,
 ).fillna(0.0)
@@ -497,6 +758,7 @@ desired_order = [
     "Demand",
     "Synthetic FT",
     "Synthetic NG",
+    "Ethylene Sector",
     "Electrolyzer",
     "NG CCS H2",
     "BECCS H2",
@@ -602,6 +864,7 @@ category_colors = {
     "BECCS H2": "seagreen",
     "Synthetic FT": "purple",
     "Synthetic NG": "violet",
+    "Ethylene Sector": "#e8630a",
     "Demand": "bisque",
 }
 
@@ -611,6 +874,7 @@ category_names = {
     "BECCS H2": "BECCS H2",
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",
+    "Ethylene Sector": "Ethylene Sector",
     "Demand": "Demand",
 }
 
