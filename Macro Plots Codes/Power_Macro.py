@@ -16,7 +16,7 @@ MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
 macro_scenario_paths = {
-    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
+    scenario_names[0]: f"clean_slate_5_25/results_168h_all/results",
 }
 
 

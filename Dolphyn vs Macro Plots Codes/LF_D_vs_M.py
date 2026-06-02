@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 pd.set_option("display.max_columns", None)
@@ -23,7 +25,7 @@ dolphyn_scenario_paths = {
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_168h_all/results",
+    scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
 }
 
 _scen_folder = dolphyn_scenario_paths[scenario_names[0]]
@@ -403,8 +405,8 @@ def map_macro_lf_category(row):
             return "Bio FT (High Jetfuel) CCS 99"
         return None
 
-    # Exclude crude-oil input edges
-    if category == "Fossil Liquid Fuels":
+    # Exclude primary-energy input edges (raw resource side); keep fuel output edges only
+    if "fossil_fuel_edge" in edge_lower:
         return None
 
     # Fossil liquid fuels
@@ -618,3 +620,41 @@ for scenario in scenario_names:
     m_net = m_row.sum()
     print(f'  MACRO   plot net               : {m_net:+.4f} EJ  (pos: {m_pos:+.4f},  neg: {m_neg:+.4f})')
     print()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+y_plotly_labels = [
+    f"{scen} ({'D' if model == 'Dolphyn' else 'M'})"
+    for scen, model in plot_df.index
+]
+
+fig_plotly = go.Figure()
+
+for col in full_desired_order:
+    display_name = label_map.get(col, col)
+    color = category_colors.get(col, '#333333')
+    fig_plotly.add_trace(go.Bar(
+        name=display_name,
+        y=y_plotly_labels,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=color,
+        hovertemplate='%{fullData.name}: %{x:.4f} EJ<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='Total LF Balance (EJ)',
+    xaxis_title='EJ',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lf_d_vs_m_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

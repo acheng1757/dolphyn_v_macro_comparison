@@ -19,7 +19,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
+    "clean_slate_5_25": f"clean_slate_5_25/all_demand_test/results",
 }
 
 # MACRO annual_flow values are treated as MWh.

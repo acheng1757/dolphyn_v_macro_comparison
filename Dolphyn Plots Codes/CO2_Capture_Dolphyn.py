@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, dolphyn_results_folder, scenario_names
 
 # List of scenario file paths and scenario names
-file_paths = [f'{dolphyn_base_dir}/ethylene_only_test/{dolphyn_results_folder}/Results_CSC/Zone_CO2_storage_balance.csv']
+file_paths = [f'{dolphyn_base_dir}/all_demand_test/{dolphyn_results_folder}/Results_CSC/Zone_CO2_storage_balance.csv']
 
 # Columns of interest for summation
 columns_of_interest = ["Power CCS",

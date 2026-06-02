@@ -4,6 +4,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 # ---------------------------------------------------------------------
 # Global settings
@@ -19,11 +21,11 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    "results_168_ethylene_only": f"all_demand_test/{dolphyn_results_folder}",
+    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    "results_168_ethylene_only": f"clean_slate_5_25/results_1848h_all/results",
+   scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
 }
 
 # Dolphyn NG_Balance values are treated as MMBtu.
@@ -153,8 +155,8 @@ def map_macro_ng_category(row):
         return "NG_Demand"
 
     # NG demand / end use
-    if category == "NG End Use":
-        return "NG_Demand"
+    #if category == "NG End Use":
+    #    return "NG_Demand"
 
     # Fossil / conventional NG purchase
     if category == "NG Fossil Upstream":
@@ -376,3 +378,41 @@ ax.legend(
 plt.subplots_adjust(left=0.24, right=0.98, top=0.88, bottom=0.36)
 
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+y_plotly_labels = [
+    f"{scen} ({'D' if model == 'Dolphyn' else 'M'})"
+    for scen, model in plot_df.index
+]
+
+fig_plotly = go.Figure()
+
+for col in desired_order:
+    display_name = category_names.get(col, col)
+    color = category_colors.get(col, '#333333')
+    fig_plotly.add_trace(go.Bar(
+        name=display_name,
+        y=y_plotly_labels,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=color,
+        hovertemplate='%{fullData.name}: %{x:.4f} EJ<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='NG Balance (EJ)',
+    xaxis_title='EJ',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ng_d_vs_m_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

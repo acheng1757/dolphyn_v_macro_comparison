@@ -4,6 +4,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
@@ -20,11 +22,11 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
+    scenario_names[0]: f"ethylene_only_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/{macro_results_folder}/results",
+    scenario_names[0]: f"clean_slate_5_25/results_1848h_ethylene_only/results",
 }
 
 # Dolphyn and MACRO captured CO2 values are treated as tonnes CO2.
@@ -36,73 +38,89 @@ TONNE_TO_MT = 1e-6
 # ---------------------------------------------------------------------
 
 # Dolphyn columns of interest
-columns_of_interest = [
-    "DAC Capture",
-    "Bio Elec Capture",
-    "Bio H2 Capture",
-    "Bio LF Capture",
-    "Bio NG Capture",
-    "Synfuel Plant Capture",
-    "Synfuel Plant Consumption",
-    "Syn NG Plant Capture",
-    "Syn NG Plant Consumption",
-    "NG Power CCS",
-    "NG DAC CCS",
-    "NG H2 CCS",
-    "CO2 Storage",
-]
+columns_of_interest = ["Power CCS",
+                       "H2 CCS",
+                       "DAC Capture",
+                       "DAC Fuel CCS",
+                       "Bio Elec Capture", 
+                       "Bio H2 Capture", 
+                       "Bio LF Capture", 
+                       "Bio NG Capture", 
+                       "Synfuel Plant Capture",
+                       "Synfuel Plant Consumption",
+                       "Syn NG Plant Capture",
+                       "Syn NG Plant Consumption",
+                       "NG Power CCS",
+                       "NG H2 CCS",
+                       "NG DAC CCS",
+                       "CO2 Storage",
+                       "Ethylene Production",
+                       "Bio Ethanol Capture",
+                       ]
 
 combine_mapping = {
-    "NG DAC CCS": "DAC Capture",
+    'NG DAC CCS': 'DAC Capture',
+    
+    'Bio Elec Capture': 'Biomass Capture',
+    'Bio H2 Capture': 'Biomass Capture',
+    'Bio LF Capture': 'Biomass Capture',
+    'Bio NG Capture': 'Biomass Capture',
 
-    "Bio Elec Capture": "Biomass Capture",
-    "Bio H2 Capture": "Biomass Capture",
-    "Bio LF Capture": "Biomass Capture",
-    "Bio NG Capture": "Biomass Capture",
+    'Syn NG Plant Capture': 'Synthetic NG',
+    'Syn NG Plant Consumption': 'Synthetic NG',
+    
+    'Synfuel Plant Capture': 'Synthetic Fuels',
+    'Synfuel Plant Consumption': 'Synthetic Fuels',
 
-    "Syn NG Plant Capture": "Synthetic NG",
-    "Syn NG Plant Consumption": "Synthetic NG",
+    'Bio Ethanol Capture': 'Bio Ethanol Capture',
 
-    "Synfuel Plant Capture": "Synthetic Fuels",
-    "Synfuel Plant Consumption": "Synthetic Fuels",
+    'Ethylene Production' : 'Ethylene Production',
 }
 
 desired_order = [
-    "CO2 Storage",
-    "Synthetic Fuels",
-    "Synthetic NG",
-    "NG Power CCS",
-    "NG H2 CCS",
-    "Ethylene CCS",
-    "Ethanol CCS",
-    "DAC Capture",
-    "Biomass Capture",
+    'CO2 Storage',
+    'Synthetic Fuels',
+    'Synthetic NG',
+    'NG Power CCS',
+    'Power CCS',
+    'NG H2 CCS',
+    'H2 CCS',
+    'DAC Capture',
+    'DAC Fuel CCS',
+    'Biomass Capture',
+    'Bio Ethanol Capture',
+    'Ethylene Production',
 ]
 
 category_colors = {
-    "Biomass Capture": "olivedrab",
-    "DAC Capture": "darkblue",
-    "NG Power CCS": "orange",
-    "NG H2 CCS": "deepskyblue",
-    "Synthetic Fuels": "purple",
-    "Synthetic NG": "violet",
-    "Ethylene CCS": "#e8630a",
-    "Ethanol CCS": "#4caf72",
-    "CO2 Storage": "darkgoldenrod",
+    'Biomass Capture':  'olivedrab',
+    'DAC Capture':      'darkblue',
+    'DAC Fuel CCS':     'steelblue',
+    'NG Power CCS':     '#e65100',   # deep orange
+    'Power CCS':        '#ff8f00',   # lighter orange
+    'NG H2 CCS':        '#0d47a1',   # deep blue
+    'H2 CCS':           '#42a5f5',   # lighter blue
+    'Synthetic Fuels':  'purple',
+    'Synthetic NG':     'violet',
+    'CO2 Storage':      'darkgoldenrod',
+    'Bio Ethanol Capture': '#f5c518',
+    'Ethylene Production': 'darkgreen',
 }
 
 category_names = {
-    "CO2 Storage": "CO2 Storage",
-    "Synthetic NG": "Syn. NG",
-    "Synthetic Fuels": "Syn. Liquids",
-    "NG Power CCS": "Power CCS",
-    "NG H2 CCS": "H2 CCS",
-    "Ethylene CCS": "Ethylene CCS",
-    "Ethanol CCS": "Ethanol CCS",
-    "DAC Capture": "DAC",
-    "Biomass Capture": "BECCS",
+    'CO2 Storage':         'CO2 Storage',
+    'Synthetic NG':        'Syn. NG',
+    'Synthetic Fuels':     'Syn. Liquids',
+    'NG Power CCS':        'NG Power CCS',
+    'Power CCS':           'Power CCS',
+    'NG H2 CCS':           'NG H2 CCS',
+    'H2 CCS':              'H2 CCS',
+    'DAC Capture':         'DAC Capture',
+    'DAC Fuel CCS':        'DAC Fuel CCS',
+    'Biomass Capture':     'Biomass CCS',
+    'Bio Ethanol Capture': 'Bio Ethanol CCS',
+    'Ethylene Production': 'Ethylene Production',
 }
-
 
 # ---------------------------------------------------------------------
 # Dolphyn captured CO2 balance
@@ -114,7 +132,7 @@ for scenario, scen_folder in dolphyn_scenario_paths.items():
     path = os.path.join(
         dolphyn_base_dir,
         scen_folder,
-        "Results/Results_CSC/Zone_CO2_storage_balance.csv",
+        "Results_CSC/Zone_CO2_storage_balance.csv",
     )
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dolphyn captured CO2 balance file not found: {path}")
@@ -199,10 +217,10 @@ def map_macro_captured_co2_category(row):
         return "Synthetic Fuels"
 
     if sector == "Ethylene":
-        return "Ethylene CCS"
+        return "Ethylene Production"
 
     if sector == "Ethanol":
-        return "Ethanol CCS"
+        return "Bio Ethanol Capture"
 
     return None
 
@@ -440,3 +458,41 @@ ax.legend(
 plt.subplots_adjust(left=0.24, right=0.98, top=0.88, bottom=0.36)
 
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+y_plotly_labels = [
+    f"{scen} ({'D' if model == 'Dolphyn' else 'M'})"
+    for scen, model in plot_df.index
+]
+
+fig_plotly = go.Figure()
+
+for col in desired_order:
+    display_name = category_names.get(col, col)
+    color = category_colors.get(col, '#333333')
+    fig_plotly.add_trace(go.Bar(
+        name=display_name,
+        y=y_plotly_labels,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=color,
+        hovertemplate='%{fullData.name}: %{x:.4f} Mt<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='Captured CO2 Balance (Mt)',
+    xaxis_title='Mt CO2',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'co2_capture_d_vs_m_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

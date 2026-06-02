@@ -4,6 +4,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
@@ -20,11 +22,11 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
+    scenario_names[0]: f"ethylene_only_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_168h_all/results",
+    scenario_names[0]: f"clean_slate_5_25/results_1848h_ethylene_only/results",
 }
 
 TONNE_TO_MT = 1e-6
@@ -52,6 +54,7 @@ desired_order = [
     "Conventional NG",
     "Synthetic Fuels and processes",
     "Synthetic NG and processes",
+    "Bio NG and processes",
     "Biofuels and processes",
     "Ethylene and processes",
     "Ethanol and processes",
@@ -65,6 +68,7 @@ category_colors = {
     "Conventional NG": "lightgrey",
     "Synthetic Fuels and processes": "purple",
     "Synthetic NG and processes": "violet",
+    "Bio NG and processes": "mediumseagreen",
     "Biofuels and processes": "lightgreen",
     "Ethylene and processes": "#e8630a",
     "Ethanol and processes": 'gold',
@@ -78,6 +82,7 @@ category_names = {
     "Conventional NG": "Fossil NG",
     "Synthetic Fuels and processes": "Synthetic Liquid Fuels",
     "Synthetic NG and processes": "Synthetic NG",
+    "Bio NG and processes": "Bio NG",
     "Biofuels and processes": "Biofuels",
     "Ethylene and processes": "Ethylene",
     "Ethanol and processes": "Ethanol",
@@ -142,8 +147,8 @@ dolphyn_combine_mapping = {
     "Bio Elec Plant Emissions": "Biofuels and processes",
     "Bio H2 Plant Emissions": "Biofuels and processes",
     "Bio LF Plant Emissions": "Biofuels and processes",
-    "Bio NG Plant Emissions": "Biofuels and processes",
-    "Bio NG": "Biofuels and processes",
+    "Bio NG Plant Emissions": "Bio NG and processes",
+    "Bio NG": "Bio NG and processes",
     "Bio Gasoline": "Biofuels and processes",
     "Bio Jetfuel": "Biofuels and processes",
     "Bio Diesel": "Biofuels and processes",
@@ -287,15 +292,19 @@ def map_macro_direct_co2_category(row):
 
     # Ignore NG end-use CO2 rows.
     # These are reconstructed from annual_flows_balance_NG.csv.
-    if sector == "NG" and "ng_end_use" in edge_lower:
+    if sector == "NG" and ("ng_end_use" in edge_lower or "natgas_end_use" in edge_lower):
         return None
 
     if sector == "CO2":
         return "DAC Capture"
 
     if sector == "Bioenergy":
-        # Positive process emissions are added to biofuels/processes.
+        _BIO_NG_CATEGORIES = {"B-NG", "B-NG-CC40", "B-NG-CC99"}
+
+        # Positive process emissions — route bio NG plant emissions separately.
         if any(s in edge_lower for s in ("co2_emission_edge", "co2_process_emission_edge", "co2_fuel_emission_edge")):
+            if category in _BIO_NG_CATEGORIES:
+                return "Bio NG and processes"
             return "Biofuels and processes"
 
         # Negative biogenic CO2 flows are the biomass capture term.
@@ -316,9 +325,11 @@ def map_macro_direct_co2_category(row):
     if sector == "Hydrogen":
         return "Conventional NG"
 
+    # I will later have to ignore the end use thing here too
     if sector == "Ethylene":
         return "Ethylene and processes"
 
+    # ethanol does not have an end use demand
     if sector == "Ethanol":
         if "co2_content_edge" in edge_lower:
             return "Ethanol Biomass Capture"
@@ -341,6 +352,10 @@ def map_macro_liquid_fuel_source(row):
     if "_use_" in edge or category in ["Diesel Use", "Gasoline Use", "Jetfuel Use"]:
         return None
 
+    # Exclude primary-energy input edges (raw resource side); keep fuel output edges only.
+    if "fossil_fuel_edge" in edge:
+        return None
+
     if sector == "Bioenergy":
         return "Biofuels and processes"
 
@@ -354,7 +369,6 @@ def map_macro_liquid_fuel_source(row):
         return "Ethylene and processes"
 
     return None
-
 
 # ---------------------------------------------------------------------
 # MACRO CO2 emission balance
@@ -545,25 +559,91 @@ for scen_short, scen_path in macro_scenario_paths.items():
     edge_lower = macro_ng["Edge"].astype(str).str.lower()
 
     # Total NG end-use demand. These rows are usually negative in the balance file.
-    is_ng_end_use = edge_lower.str.contains("ng_end_use", na=False)
+    # Match both "ng_end_use" and "natgas_end_use" naming conventions.
+    is_ng_end_use = (
+        edge_lower.str.contains("ng_end_use", na=False) |
+        edge_lower.str.contains("natgas_end_use", na=False)
+    )
     total_ng_end_use = -macro_ng.loc[is_ng_end_use, "Annual_Flow"].sum()
 
     # Synthetic NG production/supply. These rows are usually positive.
     is_syn_ng_supply = edge_lower.str.contains("syn_ng", na=False)
     syn_ng_supply = macro_ng.loc[is_syn_ng_supply, "Annual_Flow"].sum()
 
-    # Cap synthetic NG assigned to end-use emissions by total NG end-use demand.
-    syn_ng_end_use = min(max(syn_ng_supply, 0.0), max(total_ng_end_use, 0.0))
-    fossil_ng_end_use = max(total_ng_end_use - syn_ng_end_use, 0.0)
+    # Bio NG production/supply (positive flows from Bioenergy sector, e.g. B-NG plants).
+    is_bio_ng_supply = (
+        (macro_ng["Sector"].str.strip() == "Bioenergy") &
+        (macro_ng["Annual_Flow"] > 0)
+    )
+    bio_ng_supply = macro_ng.loc[is_bio_ng_supply, "Annual_Flow"].sum()
 
+    # Ethylene CH4 co-production (positive flows from Ethylene sector, e.g. TSC+H2in:CH4).
+    is_ethylene_ch4_supply = (
+    (macro_ng["Sector"].str.strip() == "Ethylene") &
+    edge_lower.str.contains("natgas_production_edge", na=False)
+    )
+    ethylene_ch4_supply = macro_ng.loc[is_ethylene_ch4_supply, "Annual_Flow"].sum()
+
+    # Allocate supply sources to end-use in priority order: bio → syn → ethylene → fossil.
+    bio_ng_end_use = min(max(bio_ng_supply, 0.0), max(total_ng_end_use, 0.0))
+    remaining_after_bio = max(total_ng_end_use - bio_ng_end_use, 0.0)
+
+    syn_ng_end_use = min(max(syn_ng_supply, 0.0), remaining_after_bio)
+    remaining_after_syn = max(remaining_after_bio - syn_ng_end_use, 0.0)
+
+    #fossil_ng_end_use = remaining_after_syn
+
+    ethylene_ng_end_use = min(max(ethylene_ch4_supply, 0.0), remaining_after_syn)
+    fossil_ng_end_use = max(remaining_after_syn - ethylene_ng_end_use, 0.0)
+
+    bio_ng_emission_mt = bio_ng_end_use * ng_emission_rate * TONNE_TO_MT
     syn_ng_emission_mt = syn_ng_end_use * ng_emission_rate * TONNE_TO_MT
+    ethylene_ng_emission_mt = ethylene_ng_end_use * ng_emission_rate * TONNE_TO_MT
     fossil_ng_emission_mt = fossil_ng_end_use * ng_emission_rate * TONNE_TO_MT
+
+    print(f"\n  NG end-use breakdown for scenario: {scen_short}")
+    print(f"    total_ng_end_use       = {total_ng_end_use:>14.2f} MWh")
+    print(f"    bio_ng_supply          = {bio_ng_supply:>14.2f} MWh  -> bio_ng_end_use  = {bio_ng_end_use:>14.2f} MWh  ({bio_ng_emission_mt:.4f} Mt)")
+    print(f"    syn_ng_supply          = {syn_ng_supply:>14.2f} MWh  -> syn_ng_end_use  = {syn_ng_end_use:>14.2f} MWh  ({syn_ng_emission_mt:.4f} Mt)")
+    print(f"    ethylene_ch4_supply    = {ethylene_ch4_supply:>14.2f} MWh  -> ethylene_end_use= {ethylene_ng_end_use:>14.2f} MWh  ({ethylene_ng_emission_mt:.4f} Mt)")
+    print(f"    fossil_ng_end_use      = {fossil_ng_end_use:>14.2f} MWh                                       ({fossil_ng_emission_mt:.4f} Mt)")
+    print(f"    sum check (should = total_ng_end_use): {bio_ng_end_use + syn_ng_end_use + ethylene_ng_end_use + fossil_ng_end_use:.2f}")
+    if total_ng_end_use > 0:
+        print(f"    NG balance file rows matched as end-use: {is_ng_end_use.sum()}")
+        print(f"    Bio NG supply rows (Bioenergy, +flow):  {is_bio_ng_supply.sum()}")
+        print(f"    Syn NG supply rows (syn_ng edge):       {is_syn_ng_supply.sum()}")
+        print(f"    Ethylene CH4 rows (Ethylene, +flow):    {is_ethylene_ch4_supply.sum()}")
+    else:
+        print("    WARNING: total_ng_end_use = 0 — check edge name patterns")
+        all_edges = macro_ng["Edge"].astype(str).unique()
+        print(f"    Total unique edge names in NG balance file: {len(all_edges)}")
+        print(f"    All unique edge names:")
+        for e in all_edges:
+            print(f"      {e}")
+
+    macro_rows.append(
+        {
+            "Scenario": scen_short,
+            "Plot_Category": "Bio NG and processes",
+            "Value": bio_ng_emission_mt,
+            "Source": "Reconstructed NG end use",
+        }
+    )
 
     macro_rows.append(
         {
             "Scenario": scen_short,
             "Plot_Category": "Synthetic NG and processes",
             "Value": syn_ng_emission_mt,
+            "Source": "Reconstructed NG end use",
+        }
+    )
+
+    macro_rows.append(
+        {
+            "Scenario": scen_short,
+            "Plot_Category": "Ethylene and processes",
+            "Value": ethylene_ng_emission_mt,
             "Source": "Reconstructed NG end use",
         }
     )
@@ -732,3 +812,41 @@ for scenario in scenario_names:
     m_net = m_row.sum()
     print(f'  MACRO   plot net            : {m_net:+.2f} Mt  (pos: {m_pos:+.2f},  neg: {m_neg:+.2f})')
     print()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+y_plotly_labels = [
+    f"{scen} ({'D' if model == 'Dolphyn' else 'M'})"
+    for scen, model in plot_df.index
+]
+
+fig_plotly = go.Figure()
+
+for col in desired_order:
+    display_name = category_names.get(col, col)
+    color = category_colors.get(col, '#333333')
+    fig_plotly.add_trace(go.Bar(
+        name=display_name,
+        y=y_plotly_labels,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=color,
+        hovertemplate='%{fullData.name}: %{x:.4f} Mt<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='CO2 Emission Balance (Mt)',
+    xaxis_title='Mt CO2',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'co2_emission_d_vs_m_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

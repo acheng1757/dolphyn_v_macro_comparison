@@ -10,14 +10,14 @@ macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 macro_results_folder = "results_001"
 dolphyn_results_folder = "Results_1"
-scenario_names = ["results_168_ethylene_only"]
+scenario_names = ["1848h"]
 
 scenario_folders = [
-    f'clean_slate_5_25/results_168h_all/results',
+    f'clean_slate_5_25/results_1848h_ethylene_only/results',
 ]
 
 scenario_labels = {
-    f'clean_slate_5_25/results_168h_all/results': "results_168_ethylene_only",
+    f'clean_slate_5_25/results_1848h_ethylene_only/results': "1848h",
 }
 
 chunk_size = 50_000
@@ -44,12 +44,8 @@ sector_definitions = {
                 r"natural_gas",
                 r"natural(?!.*ccs)",
             ]),
-            ("H2 CCGT", [
-                r"ccgt[-_]?h2",
-            ]),
-            ("H2 OCGT", [
-                r"ocgt[-_]?h2",
-            ]),
+            ("H2 CCGT", [r"ccgt[-_]?h2"]),
+            ("H2 OCGT", [r"ocgt[-_]?h2"]),
             ("Nuclear", [
                 r"^Nuclear$",
                 r"nuclear",
@@ -138,9 +134,9 @@ sector_definitions = {
                 r"global_fossil_petroleum",
             ]),
             ("Fossil Liquid Fuels", [
-                r"Global_Gasoline_Fossil_Upstream_fuel",
-                r"Global_Diesel_Fossil_Upstream_fuel",
-                r"Global_Jetfuel_Fossil_Upstream_fuel",
+                r"Global_Gasoline_Fossil_Upstream",
+                r"Global_Diesel_Fossil_Upstream",
+                r"Global_Jetfuel_Fossil_Upstream",
             ]),
             ("Gasoline Use", [
                 r"global_gasoline",
@@ -159,10 +155,12 @@ sector_definitions = {
             ("NG End Use", [
                 r"ng_end_use",
                 r"natgas_end_use",
+                r"NG_End_Use",
             ]),
             ("NG Fossil Upstream", [
                 r"ng_fossil_upstream",
                 r"natgas_fossil_upstream",
+                r"NG_Fossil_Upstream",
             ]),
         ],
     },
@@ -278,6 +276,7 @@ sector_definitions = {
     },
     "Ethylene": {
     "categories": [
+        ("Ethylene Use", [r"Global_Ethylene_Use"]),
         ("TSC", [
             r"_F(-|_)NGin_ethylene",           # F-NGin without H2out (the underscore after prevents matching F-NGin-H2out)
         ]),
@@ -955,6 +954,7 @@ def add_balance_labels(df):
         (
             edge_lower.str.contains("co2_emission_edge|co2_process_emission_edge|co2_fuel_emission_edge", na=False) |
             edge_lower.str.contains("co2_edge", na=False) |
+            edge_lower.str.contains("co2_content_edge", na=False) |
             edge_lower.str.contains("co2_edgedgee", na=False)
         ) &
         (~edge_lower.str.contains("captured", na=False))
@@ -973,13 +973,7 @@ def add_balance_labels(df):
 
     is_bioenergy_ng = (
         is_bioenergy &
-        (
-            (
-                edge_lower.str.contains("_fuel_edge", na=False) &
-                (~edge_lower.str.contains("jet", na=False))
-            ) |
-            edge_lower.str.contains("natgas", na=False)
-        )
+        edge_lower.str.contains("natgas", na=False)
     )
     df.loc[is_bioenergy_ng, "Balance"] = "NG"
 
@@ -1112,7 +1106,8 @@ def add_balance_labels(df):
 
     is_ng_sector_co2 = (
         is_ng_sector &
-        edge_lower.str.contains("natgas_end_use_co2_edge", na=False)
+        edge_lower.str.contains("natgas_end_use_co2_edge", na=False) |
+        edge_lower.str.contains("ng_end_use_co2_edge", na=False)
     )
     df.loc[is_ng_sector_co2, "Balance"] = "CO2"
 
@@ -1120,6 +1115,7 @@ def add_balance_labels(df):
         is_ng_sector &
         (
             edge_lower.str.contains("natgas_end_use_fuel_edge", na=False) |
+            edge_lower.str.contains("ng_end_use_fuel_edge", na=False) |
             edge_lower.str.contains("ng_fossil_upstream_fuel_edge", na=False)
         )
     )
@@ -1259,13 +1255,19 @@ def add_balance_labels(df):
     is_ethanol_co2 = (
         is_ethanol &
         (
-            edge_lower.str.contains("co2_emission_edge|co2_process_emission_edge|co2_fuel_emission_edge", na=False) |
+            edge_lower.str.contains("co2_emission_edge", na=False) |
             edge_lower.str.contains("co2_content_edge", na=False) |
             edge_lower.str.contains("co2_edgedgee", na=False)
-        ) &
+        )&
         (~edge_lower.str.contains("captured", na=False))
     )
     df.loc[is_ethanol_co2, "Balance"] = "CO2"
+
+    is_ethanol_captured_co2 = (
+        is_ethanol &
+        edge_lower.str.contains("co2_captured_edge", na=False)
+    )
+    df.loc[is_ethanol_captured_co2, "Balance"] = "Captured_CO2"
 
     is_ethanol_gasoline = (
         is_ethanol &
