@@ -8,16 +8,18 @@ import pandas as pd
 
 macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
-macro_results_folder = "results_001"
+macro_results_folder = "results_005"
 dolphyn_results_folder = "Results_1"
-scenario_names = ["1848h"]
+scenario_names = ["1","2"]
 
 scenario_folders = [
-    f'clean_slate_5_25/results_1848h_ethylene_only/results',
+    f'intuition_test/1_ethanol/results_005/results',
+    f'intuition_test/1_ethanol/results_006/results',
 ]
 
 scenario_labels = {
-    f'clean_slate_5_25/results_1848h_ethylene_only/results': "1848h",
+    f'intuition_test/1_ethanol/results_005/results': "1", # just drymill and no caps
+    f'intuition_test/1_ethanol/results_006/results': "2", # just drymill and caps
 }
 
 chunk_size = 50_000
@@ -427,7 +429,7 @@ def get_scenario_root_from_results_scenario(scenario):
     to:
         NineZones_X_Biomass_X_CO2
     """
-    return scenario.split(f'/{macro_results_folder}/results')[0]
+    return re.split(r'/results_\d+/results', scenario)[0]
 
 
 def get_demand_path_for_scenario(scenario):
@@ -439,8 +441,7 @@ def get_demand_path_for_scenario(scenario):
 
     return os.path.join(
         macro_base_dir,
-        "clean_slate_5_25",
-        #scenario_root,
+        scenario_root,
         "system",
         "demand.csv",
     )
@@ -665,7 +666,7 @@ def compute_annual_demand_rows(demand_path, time_weights_path, scenario, scenari
 
     ethanol_cols = [
         c for c in demand.columns
-        if c.lower().startswith("ethanol_")
+        if c.lower().startswith("ethanol_mw")
     ]
 
     naturalgas_cols = [

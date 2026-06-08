@@ -20,11 +20,11 @@ MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"ethylene_demand_test/{dolphyn_results_folder}",
+    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_168h_ethylene_only/results",
+    scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
 }
 
 # ---------------------------------------------------------------------

@@ -16,7 +16,8 @@ pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
 macro_scenario_paths = {
-    "results_168_ethylene_only": f"try_again_5_31/{macro_results_folder}/results",
+    "1": f"intuition_test/1_ethanol/results_005/results",
+    "2": f"intuition_test/1_ethanol/results_006/results",
 }
 
 # MACRO captured CO2 values are treated as tonnes CO2.
@@ -207,6 +208,19 @@ print(macro_combined_data)
 
 print("\nMACRO net captured CO2 balance by scenario (Mt):")
 print(macro_combined_data.sum(axis=1))
+
+print("CO2 Capture balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} Mt, "
+        f"Demand={total_negative:+.4f} Mt, "
+        f"Net={net:+.4f} Mt  [{status}]"
+    )
 
 
 # ---------------------------------------------------------------------

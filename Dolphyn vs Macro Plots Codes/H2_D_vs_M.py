@@ -29,6 +29,7 @@ dolphyn_scenario_paths = {
 
 macro_scenario_paths = {
     scenario_names[0]: f'clean_slate_5_25/results_1848h_all/results',
+    scenario_names[1]: f'try_again_5_31_1848/results_001/results',
 }
 
 # ---------------------------------------------------------------------
@@ -54,7 +55,7 @@ def read_scenario_csvs(relative_path):
         scenario_dfs[scen] = df
 
     combined = pd.concat(
-        [scenario_dfs[scen] for scen in scenario_names],
+        [scenario_dfs[scen] for scen in dolphyn_scenario_paths],
         ignore_index=True,
     )
 
@@ -93,7 +94,7 @@ def merge_scenario_process_data(
     """
     merged_tables = []
 
-    for scen in scenario_names:
+    for scen in dolphyn_scenario_paths:
         result_scen = result_df[result_df["Scenario"] == scen].copy()
         process_scen = process_dfs[scen][[process_key] + process_cols].copy()
 
@@ -450,7 +451,7 @@ def merge_scenario_process_data_by_zone(
     """
     merged_tables = []
 
-    for scen in scenario_names:
+    for scen in dolphyn_scenario_paths:
         result_scen = result_df[result_df["Scenario"] == scen].copy()
         process_scen = process_dfs[scen][
             [process_key, process_zone_key] + process_cols
@@ -709,7 +710,7 @@ for scen_short, scen_folder in dolphyn_scenario_paths.items():
 # Demand is negative in the H2 balance plot
 demand_data = {
     scen: -dolphyn_h2_demand_ej[scen]
-    for scen in scenario_names
+    for scen in dolphyn_scenario_paths
 }
 
 demand_df = pd.DataFrame.from_dict(

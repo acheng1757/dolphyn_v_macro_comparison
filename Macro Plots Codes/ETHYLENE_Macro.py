@@ -22,7 +22,7 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "results_168_ethylene_only": f"try_again_5_31/{macro_results_folder}/results",
+    "1848h": f"6_4_168/{macro_results_folder}/results",
 }
 
 # Ethylene flows in flows.csv are already in tonnes — no conversion needed.
@@ -97,7 +97,7 @@ category_colors = {
 
     "Dehydration NGfuel":   "#57c46a",   # medium green
     "Dehydration H2fuel":   "#1a6e30",   # dark green
-    "Ethylene Demand":      "#5a6fa8",   # slate blue
+    "Ethylene Demand":      "bisque",   # slate blue
 }
 
 label_map = {

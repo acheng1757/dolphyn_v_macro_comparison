@@ -19,9 +19,9 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "clean_slate_5_25": f"clean_slate_5_25/all_demand_test/results",
+    "1": f"intuition_test/1_ethanol/results_005/results",
+    "2": f"intuition_test/1_ethanol/results_006/results",
 }
-
 # MACRO annual_flow values are treated as MWh.
 macro_conversion_factor = 3.6e-9
 

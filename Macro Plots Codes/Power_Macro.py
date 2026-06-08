@@ -16,7 +16,8 @@ MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_168h_all/results",
+    scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
+    scenario_names[1]: f"try_again_5_31_1848/results_001/results",
 }
 
 
@@ -28,10 +29,9 @@ def map_macro_power_category(row):
     """
     Map MACRO annual_flows_balance_Power.csv rows to plotting categories.
 
-    Small MACRO-only categories are intentionally excluded:
-      - transmission losses
+    Small MACRO-only categories intentionally excluded:
       - storage losses
-      - H2 turbines
+      - H2 turbines (H2 CCGT, H2 OCGT)
     """
     sector = str(row.get("Sector", "")).strip()
     category = str(row.get("Category", "")).strip()
@@ -79,9 +79,8 @@ def map_macro_power_category(row):
 
         return "Synthetic FT"
 
-    # Exclude transmission losses
     if sector == "Transmission":
-        return None
+        return "Transmission"
 
     return None
 
@@ -92,6 +91,7 @@ def map_macro_power_category(row):
 
 desired_order = [
     "Demand",
+    "Transmission",
     "H2 Production",
     "Sorbent DAC Input",
     "Bioenergy Input",
@@ -203,10 +203,10 @@ for scen in macro_combined_data.index:
 # ---------------------------------------------------------------------
 
 category_colors = {
-    "Hydro": "blue",
+    "Hydro": "steelblue",
     "Nuclear": "red",
     "NG": "lightgrey",
-    "NG CCS": "lightpink",
+    "NG CCS": "silver",
     "Solar": "gold",
     "Wind": "dodgerblue",
     "Sorbent DAC Input": "darkblue",
@@ -217,10 +217,12 @@ category_colors = {
     "Synthetic FT": "purple",
     "H2 Production": "lightgreen",
     "Demand": "bisque",
+    "Transmission": "rosybrown",
 }
 
 category_names = {
     "Demand": "Demand",
+    "Transmission": "T&D Losses",
     "H2 Production": "Electrolyzer",
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",

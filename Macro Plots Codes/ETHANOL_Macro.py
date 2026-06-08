@@ -22,10 +22,11 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 macro_scenario_paths = {
-    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
+    "1": f"intuition_test/1_ethanol/results_005/results",
+    "2": f"intuition_test/1_ethanol/results_006/results",
 }
 
-# Ethylene flows in flows.csv are already in tonnes — no conversion needed.
+MWH_TO_EJ = 3.6e-9  # 1 MWh = 3.6e9 J; 1 EJ = 1e18 J
 
 # ---------------------------------------------------------------------
 # Desired order, colors, and labels
@@ -41,6 +42,7 @@ desired_order = [
     "Bio_Ethanol_CCS_86",
     "Bio_Ethanol_Non_CCS",
     "Ethylene",
+    "Ethanol Demand",
 ]
 
 category_colors = {
@@ -52,7 +54,8 @@ category_colors = {
     "DryMill_CCS_90_RETROFIT":  "#8b3a0f",   # deep brick (retrofit, high capture)
     "DryMill_CCS_60":           "#e8630a",   # vivid orange
     "DryMill_CCS_90":           "#7a2e0e",   # deep brick
-    "Ethylene":           "#5a6fa8",   # slate blue
+    "Ethylene":           "#e8630a",   # ethylene sector color (consistent with all other plots)
+    "Ethanol Demand":     "bisque",   # dark charcoal (demand = negative bar)
 }
 
 label_map = {
@@ -64,7 +67,8 @@ label_map = {
     "Bio_Ethanol_CCS_20" : "Bio_Ethanol_CCS_20",
     "Bio_Ethanol_CCS_86" : "Bio_Ethanol_CCS_86",
     "Bio_Ethanol_Non_CCS" : "Bio_Ethanol_Non_CCS",
-    "Ethylene":      "Ethylene",
+    "Ethylene":        "Ethylene",
+    "Ethanol Demand":  "Ethanol Demand",
 }
 
 # ---------------------------------------------------------------------
@@ -105,7 +109,7 @@ for scen_short, scen_path in macro_scenario_paths.items():
     )
 
     if not os.path.exists(macro_eth_path):
-        print(f"Warning: MACRO ethylene balance file not found: {macro_eth_path}")
+        print(f"Warning: MACRO ethanol balance file not found: {macro_eth_path}")
         continue
 
     macro_eth = pd.read_csv(macro_eth_path)
@@ -125,6 +129,7 @@ for scen_short, scen_path in macro_scenario_paths.items():
     macro_eth["Annual_Flow"] = (
         pd.to_numeric(macro_eth["Annual_Flow"], errors="coerce")
         .fillna(0.0)
+        * MWH_TO_EJ
     )
 
     macro_eth["Plot_Category"] = macro_eth.apply(
@@ -168,7 +173,7 @@ macro_combined_data = (
     [desired_order]
 )
 
-print("\nMACRO ethanol balance by scenario (tonnes):")
+print("\nMACRO ethanol balance by scenario (EJ):")
 print(macro_combined_data)
 
 # ---------------------------------------------------------------------
@@ -195,7 +200,7 @@ plot_df = macro_combined_data.copy()
 
 # Only keep columns with non-zero values, preserving desired_order
     # 1 noise threshold
-active_cols = [col for col in desired_order if plot_df[col].abs().sum() > 1.0]
+active_cols = [col for col in desired_order if plot_df[col].abs().sum() > 1e-6]
 plot_df = plot_df[active_cols]
 
 fig, ax = plt.subplots(figsize=(5.2, 3.2))
@@ -210,7 +215,7 @@ plot_df.plot(
 
 ax.set_yticklabels(scenario_names, fontsize=14)
 ax.set_ylabel("")
-ax.set_title("Ethanol Balance (tonnes)", fontsize=16)
+ax.set_title("Ethanol Balance (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")

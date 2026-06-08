@@ -17,14 +17,16 @@ pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
 macro_scenario_paths = {
-    "clean_slate_5_25": f"clean_slate_5_25/{macro_results_folder}/results",
+    "1": f"intuition_test/1_ethanol/results_005/results",
+    "2": f"intuition_test/1_ethanol/results_006/results",
 }
 
 # Used to locate asset json files.
 # This assumes assets/ is directly under each Macro scenario input folder:
 # Macro/NineZones_High_Biomass_High_CO2/assets/...
 macro_input_paths = {
-    "clean_slate_5_25": "clean_slate_5_25",
+    "1": "intuition_test/1_ethanol",
+    "2": "intuition_test/1_ethanol",
 }
 
 TONNE_TO_MT = 1e-6
@@ -55,7 +57,7 @@ category_colors = {
     "Conventional NG": "lightgrey",
     "Synthetic Fuels and processes": "purple",
     "Synthetic NG and processes": "violet",
-    "Biofuels and processes": "lightgreen",
+    "Biofuels and processes": "seagreen",
     "Ethylene and processes": "#e8630a",
     "Ethanol and processes": "#4caf72",
 }
@@ -535,9 +537,9 @@ for scen in macro_combined_data.index:
     net = total_positive + total_negative
     status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
     print(
-        f"  {scen}: Supply={total_positive:+.4f} tonnes, "
-        f"Demand={total_negative:+.4f} tonnes, "
-        f"Net={net:+.4f} tonnes  [{status}]"
+        f"  {scen}: Supply={total_positive:+.4f} Mt, "
+        f"Demand={total_negative:+.4f} Mt, "
+        f"Net={net:+.4f} Mt  [{status}]"
     )
 
 print("\nMACRO reconstructed emission components:")
@@ -547,7 +549,6 @@ print(
     .sum()
     .reset_index()
 )
-
 
 # ---------------------------------------------------------------------
 # Plot MACRO-only CO2 emission balance

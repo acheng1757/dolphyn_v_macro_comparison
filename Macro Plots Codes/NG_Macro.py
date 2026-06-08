@@ -16,7 +16,8 @@ pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
 macro_scenario_paths = {
-    "results_168_ethylene_only": f"clean_slate_5_25/results_168h_all/results",
+    "1": f"intuition_test/1_ethanol/results_005/results",
+    "2": f"intuition_test/1_ethanol/results_006/results",
 }
 
 
@@ -80,12 +81,10 @@ def map_macro_ng_category(row):
     sector = str(row.get("Sector", "")).strip()
     category = str(row.get("Category", "")).strip()
 
-    # NG demand from demand.csv
+    # NG demand from demand.csv (NaturalGas_MW_* rows)
+    # Note: sector=NG / category="NG End Use" rows are the same flows — do NOT map
+    # them here or demand will be double-counted.
     if sector == "Demand":
-        return "NG_Demand"
-
-    # NG demand / end use
-    if category == "NG End Use":
         return "NG_Demand"
 
     # Fossil / conventional NG purchase

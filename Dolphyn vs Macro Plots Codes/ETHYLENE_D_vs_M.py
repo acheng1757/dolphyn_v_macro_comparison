@@ -30,6 +30,7 @@ dolphyn_scenario_paths = {
 
 macro_scenario_paths = {
     scenario_names[0]: f'clean_slate_5_25/results_1848h_all/results',
+    scenario_names[1]: f'try_again_5_31_1848/results_001/results',
 }
 
 # Ethylene flows are already in tonnes — no conversion needed for either model.
