@@ -318,6 +318,7 @@ def map_macro_liquid_fuel_source(row):
 # ---------------------------------------------------------------------
 
 macro_rows = []
+scenarios_without_ethanol_end_use = []
 
 required_cols = ["Edge", "Annual_Flow", "Sector", "Category", "Balance"]
 
@@ -561,47 +562,51 @@ for scen_short, scen_path in macro_scenario_paths.items():
     )
 
     if os.path.exists(macro_ethanol_path):
-        ethanol_json_path = find_macro_asset_path(scen_short, "ethanol_end_use.json")
-        ethanol_emission_rate = read_ethanol_emission_rate(ethanol_json_path)
+        try:
+            ethanol_json_path = find_macro_asset_path(scen_short, "ethanol_end_use.json")
+        except FileNotFoundError:
+            scenarios_without_ethanol_end_use.append(scen_short)
+        else:
+            ethanol_emission_rate = read_ethanol_emission_rate(ethanol_json_path)
 
-        macro_eth = pd.read_csv(macro_ethanol_path)
-        macro_eth.columns = macro_eth.columns.str.strip()
+            macro_eth = pd.read_csv(macro_ethanol_path)
+            macro_eth.columns = macro_eth.columns.str.strip()
 
-        missing_cols = [c for c in required_cols if c not in macro_eth.columns]
-        if missing_cols:
-            raise ValueError(
-                f"{macro_ethanol_path} is missing required columns: {missing_cols}. "
-                f"Available columns are: {macro_eth.columns.tolist()}"
+            missing_cols = [c for c in required_cols if c not in macro_eth.columns]
+            if missing_cols:
+                raise ValueError(
+                    f"{macro_ethanol_path} is missing required columns: {missing_cols}. "
+                    f"Available columns are: {macro_eth.columns.tolist()}"
+                )
+
+            macro_eth["Annual_Flow"] = (
+                pd.to_numeric(macro_eth["Annual_Flow"], errors="coerce").fillna(0.0)
             )
 
-        macro_eth["Annual_Flow"] = (
-            pd.to_numeric(macro_eth["Annual_Flow"], errors="coerce").fillna(0.0)
-        )
+            macro_eth["Plot_Category"] = macro_eth.apply(map_macro_ethanol_source, axis=1)
+            macro_eth = macro_eth[macro_eth["Plot_Category"].notna()].copy()
 
-        macro_eth["Plot_Category"] = macro_eth.apply(map_macro_ethanol_source, axis=1)
-        macro_eth = macro_eth[macro_eth["Plot_Category"].notna()].copy()
-
-        macro_eth["End_Use_Emission_Mt"] = (
-            macro_eth["Annual_Flow"].abs()
-            * ethanol_emission_rate
-            * TONNE_TO_MT
-        )
-
-        eth_emissions = (
-            macro_eth
-            .groupby("Plot_Category")["End_Use_Emission_Mt"]
-            .sum()
-        )
-
-        for category, value in eth_emissions.items():
-            macro_rows.append(
-                {
-                    "Scenario": scen_short,
-                    "Plot_Category": category,
-                    "Value": value,
-                    "Source": "Reconstructed ethanol end use",
-                }
+            macro_eth["End_Use_Emission_Mt"] = (
+                macro_eth["Annual_Flow"].abs()
+                * ethanol_emission_rate
+                * TONNE_TO_MT
             )
+
+            eth_emissions = (
+                macro_eth
+                .groupby("Plot_Category")["End_Use_Emission_Mt"]
+                .sum()
+            )
+
+            for category, value in eth_emissions.items():
+                macro_rows.append(
+                    {
+                        "Scenario": scen_short,
+                        "Plot_Category": category,
+                        "Value": value,
+                        "Source": "Reconstructed ethanol end use",
+                    }
+                )
 
 
 macro_emissions_long = pd.DataFrame(macro_rows)
@@ -699,3 +704,8 @@ ax.legend(
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.36)
 
 plt.show()
+
+if scenarios_without_ethanol_end_use:
+    print("\nException: the following scenarios do not have ethanol end use (ethanol_end_use.json not found):")
+    for s in scenarios_without_ethanol_end_use:
+        print(f"  Scenario {s}")

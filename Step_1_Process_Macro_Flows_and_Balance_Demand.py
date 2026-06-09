@@ -9,13 +9,14 @@ import pandas as pd
 macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 dolphyn_results_folder = "Results_1"
-scenario_names = ["1","2","3","4"]
+scenario_names = ["1","2","3","4","5"]
 
 scenario_folders = [
     f'intuition_test/1_ethanol/results_005/results',
     f'intuition_test/1_ethanol/results_006/results',
     f'intuition_test/1_ethanol/results_007/results',
     f'intuition_test/1_ethanol/results_008/results',
+    f'6_4_168/results_005/results',
 ]
 
 scenario_labels = {
@@ -23,6 +24,7 @@ scenario_labels = {
     f'intuition_test/1_ethanol/results_006/results': "2", # just drymill and caps
     f'intuition_test/1_ethanol/results_007/results': "3", # just drymill and caps
     f'intuition_test/1_ethanol/results_008/results': "4", # just biomass
+    f'6_4_168/results_005/results': "5", # new scenario
 }
 
 macro_scenario_paths = {
@@ -30,6 +32,7 @@ macro_scenario_paths = {
     "2": f"intuition_test/1_ethanol/results_006/results",
     "3": f"intuition_test/1_ethanol/results_007/results",
     "4": f"intuition_test/1_ethanol/results_008/results",
+    "5": f"6_4_168/results_005/results",
 }
 
 macro_input_paths = {
@@ -37,6 +40,7 @@ macro_input_paths = {
     "2": "intuition_test/1_ethanol",
     "3": "intuition_test/1_ethanol",
     "4": "intuition_test/1_ethanol",
+    "5": "6_4_168",
 }
 
 chunk_size = 50_000
@@ -1602,10 +1606,17 @@ def process_macro_scenario(scenario):
 # ---------------------------------------------------------------------
 
 all_scenario_tables = []
+scenarios_without_ethanol_end_use = []
 
 for scenario in scenario_folders:
     scenario_df = process_macro_scenario(scenario)
     all_scenario_tables.append(scenario_df)
+
+    scenario_label = scenario_labels.get(scenario, scenario)
+    input_path = macro_input_paths.get(scenario_label, "")
+    ethanol_json_path = os.path.join(macro_base_dir, input_path, "assets", "ethanol_end_use.json")
+    if not os.path.exists(ethanol_json_path):
+        scenarios_without_ethanol_end_use.append(scenario_label)
 
 print("\n" + "=" * 90)
 print("Finished processing all MACRO scenarios.")
@@ -1617,3 +1628,9 @@ print(combined_df["Balance"].value_counts(dropna=False))
 
 print("\nCombined sector counts across all scenarios:")
 print(combined_df["Sector"].value_counts(dropna=False))
+
+if scenarios_without_ethanol_end_use:
+    print("\n" + "=" * 90)
+    print("Exception: the following scenarios do not have ethanol end use (ethanol_end_use.json not found):")
+    for s in scenarios_without_ethanol_end_use:
+        print(f"  Scenario {s}")
