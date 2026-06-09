@@ -42,15 +42,15 @@ desired_order = [
 ]
 
 category_colors = {
-    "Syn_NG": "violet",
-    "Conventional_NG": "lightgrey",
+    "Syn_NG": "#e8905a",
+    "Conventional_NG": "#c0504d",
     "NG_Demand": "bisque",
     "Power": "orange",
     "H2": "deepskyblue",
     "CSC": "darkblue",
     "BESC": "seagreen",
     "Ethylene": "#e8630a",
-    "Ethanol": "#4caf72",
+    "Ethanol": "#d4a017",
 }
 
 category_names = {

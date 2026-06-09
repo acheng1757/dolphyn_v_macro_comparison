@@ -32,11 +32,16 @@ desired_order = [
     "DAC Capture",
     "Conventional Liquid Fuels",
     "Conventional NG",
+    "NG End Use",
     "Synthetic Fuels and processes",
+    "Synthetic Fuels Combustion",
     "Synthetic NG and processes",
+    "Synthetic NG End Use",
     "Biofuels and processes",
+    "Biofuels Combustion",
     "Ethylene and processes",
     "Ethanol and processes",
+    "Ethanol Combustion",
 ]
 
 category_colors = {
@@ -44,12 +49,17 @@ category_colors = {
     "Ethanol Biomass Capture": "#1a6e30",
     "DAC Capture": "darkblue",
     "Conventional Liquid Fuels": "grey",
-    "Conventional NG": "lightgrey",
+    "Conventional NG": "#c0504d",
+    "NG End Use": "#d87878",
     "Synthetic Fuels and processes": "purple",
-    "Synthetic NG and processes": "violet",
+    "Synthetic Fuels Combustion": "#c890d0",
+    "Synthetic NG and processes": "#e8905a",
+    "Synthetic NG End Use": "#f0b898",
     "Biofuels and processes": "seagreen",
+    "Biofuels Combustion": "#90c8a0",
     "Ethylene and processes": "#e8630a",
-    "Ethanol and processes": "#4caf72",
+    "Ethanol and processes": "#d4a017",
+    "Ethanol Combustion": "#f0cc6a",
 }
 
 category_names = {
@@ -57,12 +67,17 @@ category_names = {
     "Ethanol Biomass Capture": "Ethanol Biomass",
     "DAC Capture": "DAC",
     "Conventional Liquid Fuels": "Fossil Liquid Fuels",
-    "Conventional NG": "Fossil NG",
-    "Synthetic Fuels and processes": "Syn. Liquids",
-    "Synthetic NG and processes": "Syn. NG",
-    "Biofuels and processes": "Biofuels",
+    "Conventional NG": "Fossil NG Process",
+    "NG End Use": "Fossil NG End Use",
+    "Synthetic Fuels and processes": "Syn. Liquids Process",
+    "Synthetic Fuels Combustion": "Syn. Liquids Combustion",
+    "Synthetic NG and processes": "Syn. NG Process",
+    "Synthetic NG End Use": "Syn. NG End Use",
+    "Biofuels and processes": "Biofuels Process",
+    "Biofuels Combustion": "Biofuels Combustion",
     "Ethylene and processes": "Ethylene",
-    "Ethanol and processes": "Ethanol",
+    "Ethanol and processes": "Ethanol Process",
+    "Ethanol Combustion": "Ethanol Combustion",
 }
 
 
@@ -227,6 +242,50 @@ def map_macro_direct_co2_category(row):
     return None
 
 
+def read_ethanol_emission_rate(json_path):
+    """
+    Read ethanol end-use emission rate from ethanol_end_use.json.
+
+    The file uses a GasolineEndUse (or similar) wrapper with the rate
+    nested under instance_data[*].transforms.emission_rate.  All
+    instances share the same rate, so the first non-None value is returned.
+    """
+    with open(json_path, "r") as f:
+        data = json.load(f)
+
+    for blocks in data.values():
+        for block in blocks:
+            for item in block.get("instance_data", []):
+                rate = item.get("transforms", {}).get("emission_rate")
+                if rate is not None:
+                    return float(rate)
+
+    raise ValueError(f"Could not find emission_rate in {json_path}")
+
+
+def map_macro_ethanol_source(row):
+    """
+    Map ethanol balance supply rows to source categories for end-use emissions.
+
+    Mirrors map_macro_liquid_fuel_source: only supply (production) rows
+    from the Ethanol sector are mapped; demand rows and intermediate
+    consumption rows (e.g. by ethylene plants) are excluded.
+    """
+    sector = str(row.get("Sector", "")).strip()
+    edge = str(row.get("Edge", "")).strip().lower()
+
+    if sector == "Demand":
+        return None
+
+    if "ethanol_consumption_edge" in edge:
+        return None
+
+    if sector == "Ethanol":
+        return "Ethanol Combustion"
+
+    return None
+
+
 def map_macro_liquid_fuel_source(row):
     """
     Map liquid fuels balance rows to source categories for end-use emissions.
@@ -240,10 +299,10 @@ def map_macro_liquid_fuel_source(row):
         return None
 
     if sector == "Bioenergy":
-        return "Biofuels and processes"
+        return "Biofuels Combustion"
 
     if sector == "Synthetic fuels":
-        return "Synthetic Fuels and processes"
+        return "Synthetic Fuels Combustion"
 
     if sector == "Liquid fuels" and category == "Fossil Petroleum Refinery":
         return "Conventional Liquid Fuels"
@@ -474,7 +533,7 @@ for scen_short, scen_path in macro_scenario_paths.items():
     macro_rows.append(
         {
             "Scenario": scen_short,
-            "Plot_Category": "Synthetic NG and processes",
+            "Plot_Category": "Synthetic NG End Use",
             "Value": syn_ng_emission_mt,
             "Source": "Reconstructed NG end use",
         }
@@ -483,11 +542,66 @@ for scen_short, scen_path in macro_scenario_paths.items():
     macro_rows.append(
         {
             "Scenario": scen_short,
-            "Plot_Category": "Conventional NG",
+            "Plot_Category": "NG End Use",
             "Value": fossil_ng_emission_mt,
             "Source": "Reconstructed NG end use",
         }
     )
+
+    # -------------------------------------------------------------
+    # 4. Reconstruct ethanol end-use emissions
+    # -------------------------------------------------------------
+
+    macro_ethanol_path = os.path.join(
+        macro_base_dir,
+        scen_path,
+        "annual_flow_results",
+        "balance_specific_flows",
+        "annual_flows_balance_Ethanol.csv",
+    )
+
+    if os.path.exists(macro_ethanol_path):
+        ethanol_json_path = find_macro_asset_path(scen_short, "ethanol_end_use.json")
+        ethanol_emission_rate = read_ethanol_emission_rate(ethanol_json_path)
+
+        macro_eth = pd.read_csv(macro_ethanol_path)
+        macro_eth.columns = macro_eth.columns.str.strip()
+
+        missing_cols = [c for c in required_cols if c not in macro_eth.columns]
+        if missing_cols:
+            raise ValueError(
+                f"{macro_ethanol_path} is missing required columns: {missing_cols}. "
+                f"Available columns are: {macro_eth.columns.tolist()}"
+            )
+
+        macro_eth["Annual_Flow"] = (
+            pd.to_numeric(macro_eth["Annual_Flow"], errors="coerce").fillna(0.0)
+        )
+
+        macro_eth["Plot_Category"] = macro_eth.apply(map_macro_ethanol_source, axis=1)
+        macro_eth = macro_eth[macro_eth["Plot_Category"].notna()].copy()
+
+        macro_eth["End_Use_Emission_Mt"] = (
+            macro_eth["Annual_Flow"].abs()
+            * ethanol_emission_rate
+            * TONNE_TO_MT
+        )
+
+        eth_emissions = (
+            macro_eth
+            .groupby("Plot_Category")["End_Use_Emission_Mt"]
+            .sum()
+        )
+
+        for category, value in eth_emissions.items():
+            macro_rows.append(
+                {
+                    "Scenario": scen_short,
+                    "Plot_Category": category,
+                    "Value": value,
+                    "Source": "Reconstructed ethanol end use",
+                }
+            )
 
 
 macro_emissions_long = pd.DataFrame(macro_rows)

@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 Run all Macro Plots Codes scripts and display their figures in a grid.
 The individual scripts are NOT modified — plt.show is temporarily intercepted

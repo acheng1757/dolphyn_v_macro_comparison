@@ -9,30 +9,34 @@ import pandas as pd
 macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 dolphyn_results_folder = "Results_1"
-scenario_names = ["1","2","3"]
+scenario_names = ["1","2","3","4"]
 
 scenario_folders = [
     f'intuition_test/1_ethanol/results_005/results',
     f'intuition_test/1_ethanol/results_006/results',
-    f'intuition_test/1_ethanol/results_006/results',
+    f'intuition_test/1_ethanol/results_007/results',
+    f'intuition_test/1_ethanol/results_008/results',
 ]
 
 scenario_labels = {
     f'intuition_test/1_ethanol/results_005/results': "1", # just drymill and no caps
     f'intuition_test/1_ethanol/results_006/results': "2", # just drymill and caps
-    f'intuition_test/1_ethanol/results_006/results': "3", # just drymill and caps
+    f'intuition_test/1_ethanol/results_007/results': "3", # just drymill and caps
+    f'intuition_test/1_ethanol/results_008/results': "4", # just biomass
 }
 
 macro_scenario_paths = {
     "1": f"intuition_test/1_ethanol/results_005/results",
     "2": f"intuition_test/1_ethanol/results_006/results",
-    "3": f"intuition_test/1_ethanol/results_006/results",
+    "3": f"intuition_test/1_ethanol/results_007/results",
+    "4": f"intuition_test/1_ethanol/results_008/results",
 }
 
 macro_input_paths = {
     "1": "intuition_test/1_ethanol",
     "2": "intuition_test/1_ethanol",
     "3": "intuition_test/1_ethanol",
+    "4": "intuition_test/1_ethanol",
 }
 
 chunk_size = 50_000
@@ -399,6 +403,9 @@ sector_definitions = {
         ]),
         ("Bio_Ethanol_Non_CCS", [          # catch-all for plain bio ethanol — last
             r"_Bio_Ethanol_(?!CCS)",       # negative lookahead to be extra safe
+        ]),
+        ("Ethanol End Use", [
+            r"_ethanol_end_use",
         ]),
     ],
 },

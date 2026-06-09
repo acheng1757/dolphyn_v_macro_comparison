@@ -41,9 +41,9 @@ category_colors = {
     "NG Power CCS": "orange",
     "NG H2 CCS": "deepskyblue",
     "Synthetic Fuels": "purple",
-    "Synthetic NG": "violet",
+    "Synthetic NG": "#e8905a",
     "Ethylene CCS": "#e8630a",
-    "Ethanol CCS": "#4caf72",
+    "Ethanol CCS": "#d4a017",
     "CO2 Storage": "darkgoldenrod",
 }
 

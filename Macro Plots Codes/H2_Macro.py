@@ -215,7 +215,7 @@ category_colors = {
     "NG CCS H2": "deepskyblue",
     "BECCS H2": "seagreen",
     "Synthetic FT": "purple",
-    "Synthetic NG": "violet",
+    "Synthetic NG": "#e8905a",
     "Ethylene Sector": "#e8630a",
     "Demand": "bisque",
 }

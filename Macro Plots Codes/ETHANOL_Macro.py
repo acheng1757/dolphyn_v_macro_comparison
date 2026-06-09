@@ -41,9 +41,9 @@ desired_order = [
 ]
 
 category_colors = {
-    "Bio_Ethanol_Non_CCS":      "#a8d5a2",   # light green
-    "Bio_Ethanol_CCS_20":       "#4caf72",   # medium green
-    "Bio_Ethanol_CCS_86":       "#1a6e30",   # dark green
+    "Bio_Ethanol_Non_CCS":      "#f0cc6a",   # light gold
+    "Bio_Ethanol_CCS_20":       "#d4a017",   # medium gold
+    "Bio_Ethanol_CCS_86":       "#8b6500",   # dark gold
     "DryMill_Existing_Non_CCS": "#f4a86a",   # light orange
     "DryMill_CCS_60_RETROFIT":  "#c45e20",   # medium-dark orange (retrofit)
     "DryMill_CCS_90_RETROFIT":  "#8b3a0f",   # deep brick (retrofit, high capture)
