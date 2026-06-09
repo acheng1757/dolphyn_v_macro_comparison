@@ -10,15 +10,10 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
-
-macro_scenario_paths = {
-    "1": f"intuition_test/1_ethanol/results_005/results",
-    "2": f"intuition_test/1_ethanol/results_006/results",
-}
 
 # MACRO captured CO2 values are treated as tonnes CO2.
 TONNE_TO_MT = 1e-6
@@ -252,6 +247,7 @@ ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 # Keep HB-HS at the top
 ax.invert_yaxis()
 
+'''
 # Optional target storage indicators
 indicator_height = 0.18
 target_values = {
@@ -273,6 +269,7 @@ for i, scen in enumerate(scenario_names):
             alpha=0.8,
             left=target_value,
         )
+'''
 
 # Custom legend
 handles, _ = ax.get_legend_handles_labels()

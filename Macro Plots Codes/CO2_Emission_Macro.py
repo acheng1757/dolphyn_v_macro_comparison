@@ -11,26 +11,16 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_input_paths, macro_scenario_paths
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
-macro_scenario_paths = {
-    "1": f"intuition_test/1_ethanol/results_005/results",
-    "2": f"intuition_test/1_ethanol/results_006/results",
-}
-
 # Used to locate asset json files.
 # This assumes assets/ is directly under each Macro scenario input folder:
 # Macro/NineZones_High_Biomass_High_CO2/assets/...
-macro_input_paths = {
-    "1": "intuition_test/1_ethanol",
-    "2": "intuition_test/1_ethanol",
-}
 
 TONNE_TO_MT = 1e-6
-
 
 # ---------------------------------------------------------------------
 # Plot categories
@@ -68,8 +58,8 @@ category_names = {
     "DAC Capture": "DAC",
     "Conventional Liquid Fuels": "Fossil Liquid Fuels",
     "Conventional NG": "Fossil NG",
-    "Synthetic Fuels and processes": "Synthetic Liquid Fuels",
-    "Synthetic NG and processes": "Synthetic NG",
+    "Synthetic Fuels and processes": "Syn. Liquids",
+    "Synthetic NG and processes": "Syn. NG",
     "Biofuels and processes": "Biofuels",
     "Ethylene and processes": "Ethylene",
     "Ethanol and processes": "Ethanol",

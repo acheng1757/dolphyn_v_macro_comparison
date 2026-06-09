@@ -8,18 +8,31 @@ import pandas as pd
 
 macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
-macro_results_folder = "results_005"
 dolphyn_results_folder = "Results_1"
-scenario_names = ["1","2"]
+scenario_names = ["1","2","3"]
 
 scenario_folders = [
     f'intuition_test/1_ethanol/results_005/results',
+    f'intuition_test/1_ethanol/results_006/results',
     f'intuition_test/1_ethanol/results_006/results',
 ]
 
 scenario_labels = {
     f'intuition_test/1_ethanol/results_005/results': "1", # just drymill and no caps
     f'intuition_test/1_ethanol/results_006/results': "2", # just drymill and caps
+    f'intuition_test/1_ethanol/results_006/results': "3", # just drymill and caps
+}
+
+macro_scenario_paths = {
+    "1": f"intuition_test/1_ethanol/results_005/results",
+    "2": f"intuition_test/1_ethanol/results_006/results",
+    "3": f"intuition_test/1_ethanol/results_006/results",
+}
+
+macro_input_paths = {
+    "1": "intuition_test/1_ethanol",
+    "2": "intuition_test/1_ethanol",
+    "3": "intuition_test/1_ethanol",
 }
 
 chunk_size = 50_000
@@ -674,6 +687,21 @@ def compute_annual_demand_rows(demand_path, time_weights_path, scenario, scenari
         if c.lower().startswith("naturalgas_mw_")
     ]
 
+    gasoline_cols = [
+        c for c in demand.columns
+        if c.lower().startswith("gasoline_mw_")
+    ]
+
+    diesel_cols = [
+        c for c in demand.columns
+        if c.lower().startswith("diesel_mw_")
+    ]
+
+    jetfuel_cols = [
+        c for c in demand.columns
+        if c.lower().startswith("jetfuel_mw_")
+    ]
+
     if len(electricity_cols) == 0:
         print(f"  Warning: no electricity demand columns found in {demand_path}")
 
@@ -688,6 +716,15 @@ def compute_annual_demand_rows(demand_path, time_weights_path, scenario, scenari
 
     if len(naturalgas_cols) == 0:
         print(f"  Warning: no natural gas demand columns found in {demand_path}")
+
+    if len(gasoline_cols) == 0:
+        print(f"  Warning: no gasoline demand columns found in {demand_path}")
+
+    if len(diesel_cols) == 0:
+        print(f"  Warning: no diesel demand columns found in {demand_path}")
+
+    if len(jetfuel_cols) == 0:
+        print(f"  Warning: no jetfuel demand columns found in {demand_path}")
 
     rows = []
 
@@ -743,6 +780,24 @@ def compute_annual_demand_rows(demand_path, time_weights_path, scenario, scenari
         naturalgas_cols,
         balance_name="NG",
         category_name="NaturalGas Demand",
+    )
+
+    add_demand_rows(
+        gasoline_cols,
+        balance_name="Gasoline",
+        category_name="Liquid Fuels Demand",
+    )
+
+    add_demand_rows(
+        diesel_cols,
+        balance_name="Diesel",
+        category_name="Liquid Fuels Demand",
+    )
+
+    add_demand_rows(
+        jetfuel_cols,
+        balance_name="Jetfuel",
+        category_name="Liquid Fuels Demand",
     )
 
     return pd.DataFrame(
@@ -1515,6 +1570,15 @@ def process_macro_scenario(scenario):
             demand_rows[demand_rows["Balance"] == "Ethanol"][
                 ["Edge", "Annual_Flow"]
             ].to_string(index=False)
+        )
+
+        print("\n  Annual liquid fuels demand rows:")
+        lf_demand = demand_rows[
+            demand_rows["Balance"].isin(["Gasoline", "Diesel", "Jetfuel"])
+        ]
+        print(
+            lf_demand[["Edge", "Annual_Flow", "Balance"]].to_string(index=False)
+            if len(lf_demand) > 0 else "  (none)"
         )
 
     unmatched = df[df["Sector"] == "NA"].copy()

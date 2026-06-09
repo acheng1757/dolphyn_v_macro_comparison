@@ -10,7 +10,7 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, macro_results_folder, scenario_names
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -20,11 +20,6 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 # Paths and scenarios
 # ---------------------------------------------------------------------
-
-macro_scenario_paths = {
-    "1": f"intuition_test/1_ethanol/results_005/results",
-    "2": f"intuition_test/1_ethanol/results_006/results",
-}
 
 MWH_TO_EJ = 3.6e-9  # 1 MWh = 3.6e9 J; 1 EJ = 1e18 J
 

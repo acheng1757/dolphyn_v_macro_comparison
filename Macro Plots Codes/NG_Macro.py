@@ -9,21 +9,21 @@ import sys
 # ---------------------------------------------------------------------
 # Global settings
 # ---------------------------------------------------------------------
+
+# flows.csv already has signs for consumption and production
+# (-) means consumption pointing towards the asset
+# (+) means production pointing away from the asset
+
+# If there is both consumption AND production, then it will show as a net total in the plot
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
-macro_scenario_paths = {
-    "1": f"intuition_test/1_ethanol/results_005/results",
-    "2": f"intuition_test/1_ethanol/results_006/results",
-}
-
-
 # MACRO annual_flow values are treated as MWh, consistent with previous plots.
 MWH_TO_EJ = 3.6e-9
-
 
 # ---------------------------------------------------------------------
 # Plot categories
@@ -64,7 +64,6 @@ category_names = {
     "Ethylene": "Ethylene Sector",
     "Ethanol": "Ethanol Sector",
 }
-
 
 # ---------------------------------------------------------------------
 # MACRO NG balance mapping

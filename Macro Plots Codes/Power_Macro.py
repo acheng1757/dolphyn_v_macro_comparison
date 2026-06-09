@@ -7,19 +7,13 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
 
 MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
-
-macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
-    scenario_names[1]: f"try_again_5_31_1848/results_001/results",
-}
-
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -83,7 +77,6 @@ def map_macro_power_category(row):
         return "Transmission"
 
     return None
-
 
 # ---------------------------------------------------------------------
 # Read MACRO electricity balance from annual_flows_balance_Power.csv

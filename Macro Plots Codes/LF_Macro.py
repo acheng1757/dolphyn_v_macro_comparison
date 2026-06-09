@@ -6,8 +6,15 @@ import sys
 # ---------------------------------------------------------------------
 # Global settings
 # ---------------------------------------------------------------------
+
+# flows.csv already has signs for consumption and production
+# (-) means consumption pointing towards the asset
+# (+) means production pointing away from the asset
+
+# If there is both consumption AND production, then it will show as a net total in the plot
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_results_folder
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -18,19 +25,15 @@ plt.rcParams["font.family"] = "Arial"
 # Paths and scenarios
 # ---------------------------------------------------------------------
 
-macro_scenario_paths = {
-    "1": f"intuition_test/1_ethanol/results_005/results",
-    "2": f"intuition_test/1_ethanol/results_006/results",
-}
 # MACRO annual_flow values are treated as MWh.
 macro_conversion_factor = 3.6e-9
-
 
 # ---------------------------------------------------------------------
 # Desired order, colors, and labels
 # ---------------------------------------------------------------------
 
 desired_order = [
+    "Demand",
     "Bio MeOH - Gasoline Non CCS",
     "Bio MeOH - Gasoline Mid CCS",
     "Bio MeOH - Gasoline High CCS",
@@ -44,6 +47,7 @@ desired_order = [
 ]
 
 category_colors = {
+    "Demand": "bisque",
     "Bio MeOH - Gasoline Non CCS": "lightblue",
     "Bio MeOH - Gasoline Mid CCS": "cornflowerblue",
     "Bio MeOH - Gasoline High CCS": "royalblue",
@@ -57,6 +61,7 @@ category_colors = {
 }
 
 label_map = {
+    "Demand": "Demand",
     "Bio MeOH - Gasoline Non CCS": "Bio-MTG",
     "Bio MeOH - Gasoline Mid CCS": "Bio-MTG CC31",
     "Bio MeOH - Gasoline High CCS": "Bio-MTG CC99",
@@ -132,9 +137,9 @@ def map_macro_lf_category(row):
 
     text = f"{sector_lower} {category_lower} {edge_lower}"
 
-    # Exclude demand rows
+    # Demand rows
     if sector == "Demand" or "demand" in text:
-        return None
+        return "Demand"
 
     # Synthetic liquid fuels
     if sector == "Synthetic fuels" or "synthetic" in sector_lower:
@@ -315,8 +320,8 @@ ax.set_ylabel("")
 ax.set_title("Total LF Prod. (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(0, 13)
-ax.set_xticks([0, 4, 8, 12])
+ax.set_xlim(-14, 14)
+ax.set_xticks([-12, -8, -4, 0, 4, 8, 12])
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top
