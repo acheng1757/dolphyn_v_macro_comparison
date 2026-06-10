@@ -43,6 +43,10 @@ desired_order = [
     "SFT Non CCS",
     "SFT CCS",
     "Ethylene Gasoline",
+    "Ethanol to Gasoline",
+    "Ethanol to Diesel",
+    "Ethanol to JetFuel",
+    "Ethanol to Diesel JetFuel",
     "Fossil",
 ]
 
@@ -57,6 +61,10 @@ category_colors = {
     "SFT Non CCS": "purple",
     "SFT CCS": "indigo",
     "Ethylene Gasoline": "#e8630a",
+    "Ethanol to Gasoline":      "#ffd700",
+    "Ethanol to Diesel":        "#daa520",
+    "Ethanol to JetFuel":       "#b8860b",
+    "Ethanol to Diesel JetFuel": "#cd853f",
     "Fossil": "grey",
 }
 
@@ -71,6 +79,10 @@ label_map = {
     "SFT Non CCS": "Syn-FT (Jet)",
     "SFT CCS": "Syn-FT (Jet) CC99",
     "Ethylene Gasoline": "Ethylene Naphtha",
+    "Ethanol to Gasoline":      "Eth. Upgrading (Gasoline)",
+    "Ethanol to Diesel":        "Eth. Upgrading (Diesel)",
+    "Ethanol to JetFuel":       "Eth. Upgrading (JetFuel)",
+    "Ethanol to Diesel JetFuel": "Eth. Upgrading (Diesel+Jet)",
     "Fossil": "Fossil Liquids",
 }
 
@@ -262,6 +274,65 @@ if macro_lf_tables:
     )
 else:
     macro_combined_data = pd.DataFrame(index=scenario_names)
+
+
+# ---------------------------------------------------------------------
+# Add Ethanol_to_X LF production split by process
+# ---------------------------------------------------------------------
+# Ethanol_to_X assets are tagged as "Transmission" in Step 1, so they
+# are absent from the Liquid_Fuels balance file.  We pull their LF
+# output edges from the all_nonzero file, one category per process.
+# Diesel_JetFuel must be matched before plain Diesel to avoid overlap.
+
+_LF_PROD_EDGES = (
+    "gasoline_production_edge",
+    "diesel_production_edge",
+    "jetfuel_production_edge",
+)
+
+# (plot_category, asset_substring, exclude_substring_or_None)
+_ETHANOL_UPGRADING_ASSETS = [
+    ("Ethanol to Gasoline",      "_Ethanol_to_Gasoline_",      None),
+    ("Ethanol to Diesel JetFuel", "_Ethanol_to_Diesel_JetFuel_", None),
+    ("Ethanol to Diesel",        "_Ethanol_to_Diesel_",        "_Ethanol_to_Diesel_JetFuel_"),
+    ("Ethanol to JetFuel",       "_Ethanol_to_JetFuel_",       None),
+]
+
+
+def _load_ethanol_upgrading_by_process(results_dir):
+    """Return {plot_category: annual_flow_MWh} for each Ethanol_to_X process."""
+    path = os.path.join(
+        results_dir,
+        "annual_flow_results",
+        "all_nonzero_annual_flows_with_categories.csv",
+    )
+    result = {cat: 0.0 for cat, _, _ in _ETHANOL_UPGRADING_ASSETS}
+    if not os.path.exists(path):
+        return result
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+    if "Edge" not in df.columns or "Annual_Flow" not in df.columns:
+        return result
+    flows = pd.to_numeric(df["Annual_Flow"], errors="coerce").fillna(0.0)
+    for cat, include, exclude in _ETHANOL_UPGRADING_ASSETS:
+        mask = (
+            df["Edge"].str.contains(include, na=False) &
+            df["Edge"].str.endswith(_LF_PROD_EDGES)
+        )
+        if exclude is not None:
+            mask &= ~df["Edge"].str.contains(exclude, na=False)
+        result[cat] = flows[mask].sum()
+    return result
+
+
+for scen_short, scen_path in macro_scenario_paths.items():
+    results_dir = os.path.join(macro_base_dir, scen_path)
+    process_flows = _load_ethanol_upgrading_by_process(results_dir)
+    for cat, raw_flow in process_flows.items():
+        if cat not in macro_combined_data.columns:
+            macro_combined_data[cat] = 0.0
+        if scen_short in macro_combined_data.index:
+            macro_combined_data.loc[scen_short, cat] = raw_flow * macro_conversion_factor
 
 
 # ---------------------------------------------------------------------

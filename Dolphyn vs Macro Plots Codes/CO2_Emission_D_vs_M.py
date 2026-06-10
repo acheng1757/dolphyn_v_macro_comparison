@@ -17,17 +17,16 @@ plt.rcParams["font.family"] = "Arial"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
-    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_base_dir, macro_base_dir,
     dolphyn_results_folder, scenario_names,
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
+    scenario_names[0]: f"ethylene_only_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
-    scenario_names[1]: f"try_again_5_31_1848/results_001/results",
+    "1": f"6_9_168_restart/results_010/results"
 }
 
 TONNE_TO_MT = 1e-6
@@ -458,81 +457,78 @@ for scen_short, scen_path in macro_scenario_paths.items():
     # 2. Reconstruct liquid-fuel end-use emissions by fuel source
     # -------------------------------------------------------------
 
-    if not os.path.exists(macro_lf_path):
-        raise FileNotFoundError(
-            f"MACRO liquid fuels balance file not found: {macro_lf_path}"
+    if os.path.exists(macro_lf_path):
+        macro_lf = pd.read_csv(macro_lf_path)
+        macro_lf.columns = macro_lf.columns.str.strip()
+
+        missing_cols = [c for c in required_cols if c not in macro_lf.columns]
+
+        if missing_cols:
+            raise ValueError(
+                f"{macro_lf_path} is missing required columns: {missing_cols}. "
+                f"Available columns are: {macro_lf.columns.tolist()}"
+            )
+
+        macro_lf["Annual_Flow"] = (
+            pd.to_numeric(macro_lf["Annual_Flow"], errors="coerce")
+            .fillna(0.0)
         )
 
-    macro_lf = pd.read_csv(macro_lf_path)
-    macro_lf.columns = macro_lf.columns.str.strip()
-
-    missing_cols = [c for c in required_cols if c not in macro_lf.columns]
-
-    if missing_cols:
-        raise ValueError(
-            f"{macro_lf_path} is missing required columns: {missing_cols}. "
-            f"Available columns are: {macro_lf.columns.tolist()}"
+        macro_lf["Plot_Category"] = macro_lf.apply(
+            map_macro_liquid_fuel_source,
+            axis=1,
         )
 
-    macro_lf["Annual_Flow"] = (
-        pd.to_numeric(macro_lf["Annual_Flow"], errors="coerce")
-        .fillna(0.0)
-    )
-
-    macro_lf["Plot_Category"] = macro_lf.apply(
-        map_macro_liquid_fuel_source,
-        axis=1,
-    )
-
-    macro_lf["Fuel_Commodity"] = macro_lf.apply(
-        infer_liquid_fuel_commodity,
-        axis=1,
-    )
-
-    macro_lf = macro_lf[
-        macro_lf["Plot_Category"].notna()
-        & macro_lf["Fuel_Commodity"].notna()
-    ].copy()
-
-    macro_lf["Emission_Rate"] = macro_lf["Fuel_Commodity"].map(
-        liquid_fuel_emission_rates
-    )
-
-    if macro_lf["Emission_Rate"].isna().any():
-        missing_fuels = sorted(
-            macro_lf.loc[
-                macro_lf["Emission_Rate"].isna(),
-                "Fuel_Commodity",
-            ].unique()
+        macro_lf["Fuel_Commodity"] = macro_lf.apply(
+            infer_liquid_fuel_commodity,
+            axis=1,
         )
 
-        raise ValueError(
-            "Missing liquid fuel emission rates for: "
-            f"{missing_fuels}. Rates found: {liquid_fuel_emission_rates}"
+        macro_lf = macro_lf[
+            macro_lf["Plot_Category"].notna()
+            & macro_lf["Fuel_Commodity"].notna()
+        ].copy()
+
+        macro_lf["Emission_Rate"] = macro_lf["Fuel_Commodity"].map(
+            liquid_fuel_emission_rates
         )
 
-    # Use abs() so fuel production/supply magnitudes produce positive end-use emissions.
-    macro_lf["End_Use_Emission_Mt"] = (
-        macro_lf["Annual_Flow"].abs()
-        * macro_lf["Emission_Rate"]
-        * TONNE_TO_MT
-    )
+        if macro_lf["Emission_Rate"].isna().any():
+            missing_fuels = sorted(
+                macro_lf.loc[
+                    macro_lf["Emission_Rate"].isna(),
+                    "Fuel_Commodity",
+                ].unique()
+            )
 
-    lf_emissions = (
-        macro_lf
-        .groupby("Plot_Category")["End_Use_Emission_Mt"]
-        .sum()
-    )
+            raise ValueError(
+                "Missing liquid fuel emission rates for: "
+                f"{missing_fuels}. Rates found: {liquid_fuel_emission_rates}"
+            )
 
-    for category, value in lf_emissions.items():
-        macro_rows.append(
-            {
-                "Scenario": scen_short,
-                "Plot_Category": category,
-                "Value": value,
-                "Source": "Reconstructed liquid fuel end use",
-            }
+        macro_lf["End_Use_Emission_Mt"] = (
+            macro_lf["Annual_Flow"].abs()
+            * macro_lf["Emission_Rate"]
+            * TONNE_TO_MT
         )
+
+        lf_emissions = (
+            macro_lf
+            .groupby("Plot_Category")["End_Use_Emission_Mt"]
+            .sum()
+        )
+
+        for category, value in lf_emissions.items():
+            macro_rows.append(
+                {
+                    "Scenario": scen_short,
+                    "Plot_Category": category,
+                    "Value": value,
+                    "Source": "Reconstructed liquid fuel end use",
+                }
+            )
+    else:
+        print(f"  Warning: no liquid fuels balance file for scenario {scen_short}, skipping liquid fuel emissions.")
 
     # -------------------------------------------------------------
     # 3. Reconstruct NG end-use emissions by fossil NG vs synthetic NG

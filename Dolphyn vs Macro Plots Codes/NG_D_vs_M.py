@@ -16,19 +16,17 @@ plt.rcParams["font.family"] = "Arial"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
-    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_base_dir, macro_base_dir,
     dolphyn_results_folder, scenario_names,
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
+    scenario_names[0]: f"ethylene_only_test/{dolphyn_results_folder}",
 }
 
 macro_scenario_paths = {
-   scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
-   scenario_names[1]: f"try_again_5_31_1848/results_001/results",
+    "1": f"6_9_168_restart/results_006/results"
 }
-
 # Dolphyn NG_Balance values are treated as MMBtu.
 MMBTU_TO_EJ = 0.293071 * 3.6e-9
 

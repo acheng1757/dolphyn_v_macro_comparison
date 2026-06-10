@@ -14,7 +14,7 @@ plt.rcParams["font.family"] = "Arial"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
-    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_base_dir, macro_base_dir,
     dolphyn_results_folder, scenario_names,
 )
 
@@ -24,12 +24,11 @@ mwh_h2_p_t_h2 = 39.39
 mwh_h2_p_tonne_h2 = 39.39
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test/",
+    "1": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f'clean_slate_5_25/results_1848h_all/results',
-    scenario_names[1]: f'try_again_5_31_1848/results_001/results',
+    "1": f"6_9_168_restart/results_006/results"
 }
 
 # ---------------------------------------------------------------------

@@ -37,33 +37,45 @@ desired_order = [
     "Bio_Ethanol_CCS_86",
     "Bio_Ethanol_Non_CCS",
     "Ethylene",
+    "Ethanol to Gasoline",
+    "Ethanol to Diesel",
+    "Ethanol to JetFuel",
+    "Ethanol to Diesel JetFuel",
     "Ethanol Demand",
 ]
 
 category_colors = {
-    "Bio_Ethanol_Non_CCS":      "#f0cc6a",   # light gold
-    "Bio_Ethanol_CCS_20":       "#d4a017",   # medium gold
-    "Bio_Ethanol_CCS_86":       "#8b6500",   # dark gold
-    "DryMill_Existing_Non_CCS": "#f4a86a",   # light orange
-    "DryMill_CCS_60_RETROFIT":  "#c45e20",   # medium-dark orange (retrofit)
-    "DryMill_CCS_90_RETROFIT":  "#8b3a0f",   # deep brick (retrofit, high capture)
-    "DryMill_CCS_60":           "#e8630a",   # vivid orange
-    "DryMill_CCS_90":           "#7a2e0e",   # deep brick
-    "Ethylene":           "#e8630a",   # ethylene sector color (consistent with all other plots)
-    "Ethanol Demand":     "bisque",   # dark charcoal (demand = negative bar)
+    "Bio_Ethanol_Non_CCS":      "#f0cc6a",
+    "Bio_Ethanol_CCS_20":       "#d4a017",
+    "Bio_Ethanol_CCS_86":       "#8b6500",
+    "DryMill_Existing_Non_CCS": "#f4a86a",
+    "DryMill_CCS_60_RETROFIT":  "#c45e20",
+    "DryMill_CCS_90_RETROFIT":  "#8b3a0f",
+    "DryMill_CCS_60":           "#e8630a",
+    "DryMill_CCS_90":           "#7a2e0e",
+    "Ethylene":                 "#e8630a",
+    "Ethanol to Gasoline":       "royalblue",
+    "Ethanol to Diesel":         "forestgreen",
+    "Ethanol to JetFuel":        "chocolate",
+    "Ethanol to Diesel JetFuel": "limegreen",
+    "Ethanol Demand":           "bisque",
 }
 
 label_map = {
-    "DryMill_Existing_Non_CCS":                  "DryMill_Existing_Non_CCS",
-    "DryMill_CCS_60_RETROFIT":                  "DryMill_CCS_60_RETROFIT",
-    "DryMill_CCS_90_RETROFIT":                  "DryMill_CCS_90_RETROFIT",
-    "DryMill_CCS_60":                  "DryMill_CCS_60",
-    "DryMill_CCS_90":                  "DryMill_CCS_90",
-    "Bio_Ethanol_CCS_20" : "Bio_Ethanol_CCS_20",
-    "Bio_Ethanol_CCS_86" : "Bio_Ethanol_CCS_86",
-    "Bio_Ethanol_Non_CCS" : "Bio_Ethanol_Non_CCS",
-    "Ethylene":        "Ethylene",
-    "Ethanol Demand":  "Ethanol Demand",
+    "DryMill_Existing_Non_CCS":  "DryMill_Existing_Non_CCS",
+    "DryMill_CCS_60_RETROFIT":   "DryMill_CCS_60_RETROFIT",
+    "DryMill_CCS_90_RETROFIT":   "DryMill_CCS_90_RETROFIT",
+    "DryMill_CCS_60":            "DryMill_CCS_60",
+    "DryMill_CCS_90":            "DryMill_CCS_90",
+    "Bio_Ethanol_CCS_20":        "Bio_Ethanol_CCS_20",
+    "Bio_Ethanol_CCS_86":        "Bio_Ethanol_CCS_86",
+    "Bio_Ethanol_Non_CCS":       "Bio_Ethanol_Non_CCS",
+    "Ethylene":                  "Ethylene",
+    "Ethanol to Gasoline":       "Eth. Upgrading (Gasoline)",
+    "Ethanol to Diesel":         "Eth. Upgrading (Diesel)",
+    "Ethanol to JetFuel":        "Eth. Upgrading (JetFuel)",
+    "Ethanol to Diesel JetFuel": "Eth. Upgrading (Diesel+Jet)",
+    "Ethanol Demand":            "Ethanol Demand",
 }
 
 # ---------------------------------------------------------------------
@@ -151,6 +163,58 @@ if macro_eth_tables:
     print(macro_combined_data)
 else:
     macro_combined_data = pd.DataFrame(index=scenario_names)
+
+
+# ---------------------------------------------------------------------
+# Add Ethanol_to_X ethanol consumption split by process
+# ---------------------------------------------------------------------
+# Ethanol_to_X assets are tagged as "Transmission" in Step 1, so they
+# are absent from the Ethanol balance file.  We pull their
+# ethanol_consumption_edge annual flows (already negative) directly from
+# the all_nonzero file, one category per process.
+
+_ETHANOL_UPGRADING_ASSETS = [
+    ("Ethanol to Gasoline",       "_Ethanol_to_Gasoline_",       None),
+    ("Ethanol to Diesel JetFuel", "_Ethanol_to_Diesel_JetFuel_", None),
+    ("Ethanol to Diesel",         "_Ethanol_to_Diesel_",         "_Ethanol_to_Diesel_JetFuel_"),
+    ("Ethanol to JetFuel",        "_Ethanol_to_JetFuel_",        None),
+]
+
+
+def _load_ethanol_upgrading_consumption(results_dir):
+    """Return {plot_category: annual_ethanol_consumption_MWh} for each Ethanol_to_X process."""
+    path = os.path.join(
+        results_dir,
+        "annual_flow_results",
+        "all_nonzero_annual_flows_with_categories.csv",
+    )
+    result = {cat: 0.0 for cat, _, _ in _ETHANOL_UPGRADING_ASSETS}
+    if not os.path.exists(path):
+        return result
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+    if "Edge" not in df.columns or "Annual_Flow" not in df.columns:
+        return result
+    flows = pd.to_numeric(df["Annual_Flow"], errors="coerce").fillna(0.0)
+    for cat, include, exclude in _ETHANOL_UPGRADING_ASSETS:
+        mask = (
+            df["Edge"].str.contains(include, na=False) &
+            df["Edge"].str.endswith("_ethanol_consumption_edge")
+        )
+        if exclude is not None:
+            mask &= ~df["Edge"].str.contains(exclude, na=False)
+        result[cat] = flows[mask].sum()
+    return result
+
+
+for scen_short, scen_path in macro_scenario_paths.items():
+    results_dir = os.path.join(macro_base_dir, scen_path)
+    process_flows = _load_ethanol_upgrading_consumption(results_dir)
+    for cat, raw_flow in process_flows.items():
+        if cat not in macro_combined_data.columns:
+            macro_combined_data[cat] = 0.0
+        if scen_short in macro_combined_data.index:
+            macro_combined_data.loc[scen_short, cat] = raw_flow * MWH_TO_EJ
 
 
 # ---------------------------------------------------------------------

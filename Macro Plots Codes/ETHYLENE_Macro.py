@@ -4,6 +4,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
@@ -368,3 +370,37 @@ ax.legend(
 
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.40)
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+
+fig_plotly = go.Figure()
+
+for col in active_cols:
+    display_name = label_map.get(col, col)
+    color = category_colors.get(col, '#333333')
+    fig_plotly.add_trace(go.Bar(
+        name=display_name,
+        y=scenario_names,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=color,
+        hovertemplate='%{fullData.name}: %{x:.2f} tonnes<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='Ethylene Balance (tonnes)',
+    xaxis_title='tonnes',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ethylene_macro_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

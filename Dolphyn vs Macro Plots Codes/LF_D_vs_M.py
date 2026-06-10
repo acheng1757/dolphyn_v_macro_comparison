@@ -16,7 +16,7 @@ plt.rcParams["font.family"] = "Arial"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
-    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_base_dir, macro_base_dir,
     dolphyn_results_folder, scenario_names,
 )
 

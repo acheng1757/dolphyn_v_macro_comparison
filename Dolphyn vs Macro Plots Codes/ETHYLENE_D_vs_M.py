@@ -20,17 +20,16 @@ plt.rcParams["font.family"] = "Arial"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
-    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_base_dir, macro_base_dir,
     dolphyn_results_folder, scenario_names,
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f'all_demand_test/{dolphyn_results_folder}/Results_Ethylene',
+    "1": f'ethylene_only_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f'clean_slate_5_25/results_1848h_all/results',
-    scenario_names[1]: f'try_again_5_31_1848/results_001/results',
+    "1": f"6_9_168_restart/results_010/results"
 }
 
 # Ethylene flows are already in tonnes — no conversion needed for either model.
@@ -100,7 +99,7 @@ category_colors = {
     "TSC+CC90+H2in":        "midnightblue",   # navy (CC90 + H2fuel) — same family
     "Ret-TSC+CC90+H2in":    "navy",   # mid navy
 
-    "Existing TSC:H2":  "#f5c518",   # light gray
+    "Existing TSC:H2":  "peru",   # light gray
     "ESC":              "#a0a0a0",   # mid gray
     "Ret-ESC":              "#a0a0a0",   # mid gray
 

@@ -9,43 +9,33 @@ import pandas as pd
 macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 dolphyn_results_folder = "Results_1"
-scenario_names = ["1","2","3","4","5"]
 
-scenario_folders = [
-    f'intuition_test/1_ethanol/results_005/results',
-    f'intuition_test/1_ethanol/results_006/results',
-    f'intuition_test/1_ethanol/results_007/results',
-    f'intuition_test/1_ethanol/results_008/results',
-    f'6_4_168/results_005/results',
+# Only edit this list: (label, results_path_relative_to_macro_base_dir, system_folder)
+#_scenarios = [
+#    ("1", "intuition_test/1_ethanol_ccs/results_001/results", "system"),
+#    ("2", "intuition_test/1a_ethanol_ccs_cellulosic_Dolphyn/results_001/results", "system"),
+#    ("3", "intuition_test/1b_ethanol_ccs_cellulosic_NREL/results_001/results", "system"),
+#]
+
+_scenarios = [
+    ("1", "6_9_168_restart/results_006/results", "system"),
+    ("2", "6_9_168_restart/results_007/results", "system"),
+    ("3", "6_9_168_restart/results_012/results", "system"),
+    ("4", "6_9_168_restart_all/results_001/results", "system"),
 ]
 
-scenario_labels = {
-    f'intuition_test/1_ethanol/results_005/results': "1", # just drymill and no caps
-    f'intuition_test/1_ethanol/results_006/results': "2", # just drymill and caps
-    f'intuition_test/1_ethanol/results_007/results': "3", # just drymill and caps
-    f'intuition_test/1_ethanol/results_008/results': "4", # just biomass
-    f'6_4_168/results_005/results': "5", # new scenario
-}
-
-macro_scenario_paths = {
-    "1": f"intuition_test/1_ethanol/results_005/results",
-    "2": f"intuition_test/1_ethanol/results_006/results",
-    "3": f"intuition_test/1_ethanol/results_007/results",
-    "4": f"intuition_test/1_ethanol/results_008/results",
-    "5": f"6_4_168/results_005/results",
-}
-
-macro_input_paths = {
-    "1": "intuition_test/1_ethanol",
-    "2": "intuition_test/1_ethanol",
-    "3": "intuition_test/1_ethanol",
-    "4": "intuition_test/1_ethanol",
-    "5": "6_4_168",
+scenario_names          = [label  for label, _,    _   in _scenarios]
+scenario_folders        = [path   for _,     path, _   in _scenarios]
+scenario_labels         = {path:  label for label, path, _   in _scenarios}
+macro_scenario_paths    = {label: path  for label, path, _   in _scenarios}
+scenario_system_folders = {path:  sys   for _,     path, sys in _scenarios}
+macro_input_paths       = {
+    label: re.sub(r"/results_\d+/results$", "", path)
+    for label, path, _ in _scenarios
 }
 
 chunk_size = 50_000
 annual_flow_tolerance = 1e-8
-
 
 # ---------------------------------------------------------------------
 # Sector/category definitions for tagging annual flows
@@ -459,14 +449,15 @@ def get_scenario_root_from_results_scenario(scenario):
 def get_demand_path_for_scenario(scenario):
     """
     Demand file is located in:
-        <macro_base_dir>/<scenario_root>/system/demand.csv
+        <macro_base_dir>/<scenario_root>/<system_folder>/demand.csv
     """
     scenario_root = get_scenario_root_from_results_scenario(scenario)
+    system_folder = scenario_system_folders.get(scenario, "system")
 
     return os.path.join(
         macro_base_dir,
         scenario_root,
-        "system",
+        system_folder,
         "demand.csv",
     )
 
