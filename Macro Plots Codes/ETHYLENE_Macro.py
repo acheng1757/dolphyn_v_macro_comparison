@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
@@ -12,7 +13,7 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, macro_input_paths
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -24,72 +25,95 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 
 desired_order = [
-    "TSC",
-    "Ret-TSC",
-
-    "TSC+CC90",
-    "Ret-TSC+CC90",
-
-    "TSC:H2",
+    "Ethylene Demand",
+    "Existing TSC:H2",
     "Ret-TSC:H2",
+    "Ret-TSC",
+    "Ret-TSC+CC90",
+    "Ret-TSC+CC90:H2",
+    "Ret-TSC+H2in",
+    "Ret-TSC+CC90+H2in",
+    "Ret-ESC",
+    "Ret-TSC+H2in:CH4",
 
+    "TSC:H2",   
+    "TSC",
+    "TSC+CC90",
+    "TSC+CC90:H2",
+    "TSC+H2in",
+    "TSC+CC90+H2in",
+    "TSC+H2in:CH4",
+
+    "ESC",
+
+    "Existing Capacities",
     "MS+MTO",
 
     "MS+MTO+CC90",
-
-    "TSC+CC90:H2",
-    "Ret-TSC+CC90:H2",
-
-    "TSC+H2in",
-    "Ret-TSC+H2in",
-
-    "TSC+CC90+H2in",
-    "Ret-TSC+CC90+H2in",
-
-    "ESC",
-    "Ret-ESC",
-
-    "TSC+H2in:CH4",
-    "Ret-TSC+H2in:CH4",
-
-    "Existing Capacities",
     "Dehydration NGfuel",
     "Dehydration H2fuel",
-    "Ethylene Demand",
 ]
 
 category_colors = {
-    "TSC":                  "#e8630a",   # vivid orange
-    "Ret-TSC":              "#f4a86a",   # light orange
+    "TSC":                  "#e8630a",
+    "Ret-TSC":              "#e8630a",   # same as TSC
 
-    "TSC+CC90":             "#7a2e0e",   # deep brick
-    "Ret-TSC+CC90":         "#b5603a",   # mid brick
+    "TSC+CC90":             "#7a2e0e",
+    "Ret-TSC+CC90":         "#7a2e0e",   # same as TSC+CC90
 
-    "TSC:H2":               "#f5c518",   # bright gold (H2out co-product)
-    "Ret-TSC:H2":          "#fae27a",   # light gold
+    "TSC:H2":               "#f5c518",
+    "Ret-TSC:H2":           "#f5c518",   # same as TSC:H2
+    "Existing TSC:H2":      "#f5c518",   # same as TSC:H2
 
-    "MS+MTO":               "#9b59b6",   # purple (synthetic)
-    "MS+MTO+CC90":          "#4a1a6e",   # deep purple
+    "MS+MTO":               "#9b59b6",
+    "MS+MTO+CC90":          "#4a1a6e",
 
-    "TSC+CC90:H2":          "#a07c00",   # dark gold (CC90 + H2out)
-    "Ret-TSC+CC90:H2":     "#d4b840",   # mid gold
+    "TSC+CC90:H2":          "#a07c00",
+    "Ret-TSC+CC90:H2":      "#a07c00",   # same as TSC+CC90:H2
 
-    "TSC+H2in":             "#3a8fd1",   # sky blue (H2fuel input)
-    "Ret-TSC+H2in":         "#85c4ec",   # light sky blue
+    "TSC+H2in":             "#3a8fd1",
+    "Ret-TSC+H2in":         "#3a8fd1",   # same as TSC+H2in
 
-    "TSC+H2in:CH4":         "#1a4f80",   # navy (H2fuel + CH4out)
-    "Ret-TSC+H2in:CH4":     "#4a7faf",   # mid navy
+    "TSC+H2in:CH4":         "#1a4f80",
+    "Ret-TSC+H2in:CH4":     "#1a4f80",   # same as TSC+H2in:CH4
 
-    "TSC+CC90+H2in":        "midnightblue",   # navy (CC90 + H2fuel) — same family
-    "Ret-TSC+CC90+H2in":    "navy",   # mid navy
+    "TSC+CC90+H2in":        "midnightblue",
+    "Ret-TSC+CC90+H2in":    "midnightblue",   # same as TSC+CC90+H2in
 
-    "Existing Capacities":  "#cccccc",   # light gray
-    "ESC":              "#a0a0a0",   # mid gray
-    "Ret-ESC":              "#a0a0a0",   # mid gray
+    "Existing Capacities":  "#f5c518",   # same as TSC:H2 (existing thermal crackers)
+    "ESC":                  "#808080",
+    "Ret-ESC":              "#808080",   # same as ESC
 
-    "Dehydration NGfuel":   "#57c46a",   # medium green
-    "Dehydration H2fuel":   "#1a6e30",   # dark green
-    "Ethylene Demand":      "bisque",   # slate blue
+    "Dehydration NGfuel":   "#57c46a",
+    "Dehydration H2fuel":   "#1a6e30",
+    "Ethylene Demand":      "bisque",
+}
+
+# Pattern encodes build type: "" = new build, "//" = retrofit (Ret-), ".." = existing
+category_hatch = {
+    "TSC":                  "",
+    "Ret-TSC":              "//",
+    "TSC+CC90":             "",
+    "Ret-TSC+CC90":         "//",
+    "TSC:H2":               "",
+    "Ret-TSC:H2":           "//",
+    "Existing TSC:H2":      "..",
+    "MS+MTO":               "",
+    "MS+MTO+CC90":          "",
+    "TSC+CC90:H2":          "",
+    "Ret-TSC+CC90:H2":      "//",
+    "TSC+H2in":             "",
+    "Ret-TSC+H2in":         "//",
+    "TSC+H2in:CH4":         "",
+    "Ret-TSC+H2in:CH4":     "//",
+    "TSC+CC90+H2in":        "",
+    "Ret-TSC+CC90+H2in":    "//",
+    "Existing Capacities":  "..",
+    "ESC":                  "",
+    "Ret-ESC":              "//",
+    "Dehydration NGfuel":   "",
+    "Dehydration H2fuel":   "",
+    "Ethylene Demand":      "",
 }
 
 label_map = {
@@ -101,6 +125,7 @@ label_map = {
 
     "TSC:H2":               "TSC:H2",
     "Ret-TSC:H2":          "Ret-TSC:H2",
+    "Existing TSC:H2":  "Existing TSC:H2",
 
     "MS+MTO":               "MS+MTO",
     "MS+MTO+CC90":          "MS+MTO+CC90",
@@ -304,6 +329,30 @@ macro_combined_data = (
 print("\nMACRO ethylene balance by scenario (tonnes):")
 print(macro_combined_data)
 
+# Existing steam cracker capacity: MWh-ethane/hr → t-ethylene/yr
+_t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
+_mwh_ethane_p_t_ethane = 13.19      # MWh-ethane/t-ethane (LHV)
+
+_crackers_json_path = os.path.join(
+    macro_base_dir,
+    macro_input_paths[scenario_names[0]],
+    "assets",
+    "existing_steam_crackers.json",
+)
+with open(_crackers_json_path) as _f:
+    _crackers = json.load(_f)
+
+_total_cap_mwh_per_hr = sum(
+    inst["edges"]["ethane_consumption_edge"]["existing_capacity"]
+    for asset in _crackers["steamcracker_existing"]
+    for inst in asset["instance_data"]
+)
+
+# MWh-ethane/hr ÷ (MWh/t-ethane) ÷ (t-ethane/t-ethylene) × 8760 hr/yr → t-ethylene/yr
+existing_cracker_cap = (
+    _total_cap_mwh_per_hr / _mwh_ethane_p_t_ethane / _t_ethane_p_t_ethylene * 8760
+)
+
 
 # ---------------------------------------------------------------------
 # Balance check: sum of positives vs negatives per scenario
@@ -343,20 +392,36 @@ plot_df.plot(
     color=[category_colors[col] for col in active_cols],
 )
 
+for container, col in zip(ax.containers, active_cols):
+    hatch = category_hatch.get(col, "")
+    for patch in container.patches:
+        patch.set_hatch(hatch)
+        patch.set_edgecolor("white" if hatch else "none")
+
 ax.set_yticklabels(scenario_names, fontsize=14)
 ax.set_ylabel("")
 ax.set_title("Ethylene Balance (tonnes)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
+ax.axvline(x=existing_cracker_cap, color="red", linewidth=1.5, linestyle="--",
+           label="Total Existing Capacity")
+ax.axvline(x=0.8 * existing_cracker_cap, color="red", linewidth=1, linestyle=":",
+           label="80% Existing Capacity")
 ax.invert_yaxis()
 
 handles, labels = ax.get_legend_handles_labels()
 label_to_handle = dict(zip(labels, handles))
 
-# Only include active_cols that actually got plotted
+# Only include active_cols that actually got plotted, plus the capacity lines
 custom_handles = [label_to_handle[col] for col in active_cols if col in label_to_handle]
 custom_labels  = [label_map[col]       for col in active_cols if col in label_to_handle]
+if "Total Existing Capacity" in label_to_handle:
+    custom_handles.append(label_to_handle["Total Existing Capacity"])
+    custom_labels.append("Total Existing Capacity")
+if "80% Existing Capacity" in label_to_handle:
+    custom_handles.append(label_to_handle["80% Existing Capacity"])
+    custom_labels.append("80% Existing Capacity")
 
 ax.legend(
     custom_handles,
@@ -375,17 +440,23 @@ plt.show()
 # Interactive Plotly version — hover to see individual category values
 # ---------------------------------------------------------------------------
 
+_plotly_hatch_map = {"//": "/", "..": "."}
+
 fig_plotly = go.Figure()
 
 for col in active_cols:
     display_name = label_map.get(col, col)
     color = category_colors.get(col, '#333333')
+    pattern_shape = _plotly_hatch_map.get(category_hatch.get(col, ""), "")
     fig_plotly.add_trace(go.Bar(
         name=display_name,
         y=scenario_names,
         x=plot_df[col].tolist(),
         orientation='h',
         marker_color=color,
+        marker_pattern_shape=pattern_shape,
+        marker_pattern_fgcolor="white",
+        marker_pattern_fillmode="overlay",
         hovertemplate='%{fullData.name}: %{x:.2f} tonnes<extra></extra>',
     ))
 
@@ -395,9 +466,27 @@ fig_plotly.update_layout(
     xaxis_title='tonnes',
     yaxis=dict(autorange='reversed'),
     legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
-    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
-                 y1=len(plot_df) - 0.5, yref='y',
-                 line=dict(color='black', width=1, dash='dash'))],
+    shapes=[
+        dict(type='line', x0=0, x1=0, y0=-0.5,
+             y1=len(plot_df) - 0.5, yref='y',
+             line=dict(color='black', width=1, dash='dash')),
+        dict(type='line', x0=existing_cracker_cap, x1=existing_cracker_cap,
+             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+             line=dict(color='red', width=1.5, dash='dash')),
+        dict(type='line', x0=0.8 * existing_cracker_cap, x1=0.8 * existing_cracker_cap,
+             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+             line=dict(color='red', width=1, dash='dot')),
+    ],
+    annotations=[
+        dict(x=existing_cracker_cap, y=len(plot_df) - 0.5,
+             xref='x', yref='y', yanchor='bottom',
+             text='Total Existing Capacity', showarrow=False,
+             font=dict(color='red', size=11)),
+        dict(x=0.8 * existing_cracker_cap, y=len(plot_df) - 0.5,
+             xref='x', yref='y', yanchor='bottom',
+             text='80% Existing Capacity', showarrow=False,
+             font=dict(color='red', size=11)),
+    ],
     height=max(400, 80 * len(plot_df)),
 )
 

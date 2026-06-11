@@ -20,13 +20,17 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 # Macro paths are relative to macro_base_dir.
 
 dolphyn_scenario_paths = {
-    "1": f"ethylene_only_test/{dolphyn_results_folder}",
-    "2": f"ethylene_only_test/{dolphyn_results_folder}",
+    "21": f'ethylene_only_test/{dolphyn_results_folder}',
+    "22": f'ethylene_only_test/{dolphyn_results_folder}',
+    "23": f'ethylene_only_test/{dolphyn_results_folder}',
+    "24": f'ethylene_only_test/{dolphyn_results_folder}',
 }
 
 macro_scenario_paths = {
-    "1": "6_9_168_restart/results_001/results",
-    "2": "6_9_168_restart/results_007/results",
+    "21": f"6_9_168_restart/results_021/results",
+    "22": f"6_9_168_restart/results_022/results",
+    "23": f"6_9_168_restart/results_023/results",
+    "24": f"6_9_168_restart/results_024/results"
 }
 
 # ---------------------------------------------------------------------

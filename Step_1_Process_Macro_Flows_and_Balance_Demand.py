@@ -18,10 +18,16 @@ dolphyn_results_folder = "Results_1"
 #]
 
 _scenarios = [
-    ("1", "6_9_168_restart/results_006/results", "system"),
-    ("2", "6_9_168_restart/results_007/results", "system"),
-    ("3", "6_9_168_restart/results_012/results", "system"),
-    ("4", "6_9_168_restart_all/results_001/results", "system"),
+    #("9", "6_9_168_restart/results_009/results", "system"),
+    #("10", "6_9_168_restart/results_010/results", "system"),
+    #("11", "6_9_168_restart/results_011/results", "system"),
+    #("17", "6_9_168_restart/results_017/results", "system"),
+    #("18", "6_9_168_restart/results_018/results", "system"),
+    #("19", "6_9_168_restart/results_019/results", "system"),
+    #("20", "6_9_168_restart/results_020/results", "system"),
+    ("23", "6_9_168_restart/results_023/results", "system"),
+    ("25", "6_9_168_restart/results_025/results", "system"),
+    ("26", "6_9_168_restart/results_026/results", "system"),
 ]
 
 scenario_names          = [label  for label, _,    _   in _scenarios]
@@ -295,6 +301,9 @@ sector_definitions = {
         ]),
         ("Ret-TSC", [
             r"_F(-|_)NGin_RETROFIT_ethylene",
+        ]),
+        ("Existing TSC:H2", [
+            r"Existing_F(-|_)NGin(-|_)H2out_ethylene",
         ]),
         ("TSC:H2", [
             r"_F(-|_)NGin(-|_)H2out_ethylene",
