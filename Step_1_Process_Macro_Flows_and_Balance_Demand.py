@@ -14,7 +14,8 @@ dolphyn_results_folder = "Results_1"
 _scenarios = [
     ("1", "intuition_test/2_ethanol_ccs_lf/results_001/results", "system"),
     ("2", "intuition_test/2_ethanol_ccs_lf/results_002/results", "system"),
-    ("3", "intuition_test/2_ethanol_ccs_lf/results_005/results", "system"),
+    ("5", "intuition_test/2_ethanol_ccs_lf/results_005/results", "system"),
+    ("7", "intuition_test/2_ethanol_ccs_lf/results_007/results", "system"),
 ]
 
 #_scenarios = [

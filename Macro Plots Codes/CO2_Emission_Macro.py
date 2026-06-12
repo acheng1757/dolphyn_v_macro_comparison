@@ -404,9 +404,15 @@ for scen_short, scen_path in macro_scenario_paths.items():
     #
     # Uses the actual CO2 values from the CO2 balance file (captured
     # above in lf_co2_actual) and distributes them proportionally to
-    # each supply source based on volume fractions in the LF balance
-    # file.  This avoids relying on JSON emission rates that may differ
-    # from the model's internal accounting.
+    # each supply source based on volume fractions relative to total
+    # fuel DEMAND (not tracked supply).
+    #
+    # The LF balance file does not fully capture fossil refinery supply
+    # when it operates as the residual supplier — e.g. in a scenario
+    # without Ethanol_to_Gasoline, the refinery may supply 5.3 EJ of
+    # gasoline but only ~1.6 EJ appears in the balance file.  Using
+    # demand as the denominator and computing fossil as
+    # (demand − tracked non-fossil supply) corrects this.
     # -------------------------------------------------------------
 
     if os.path.exists(macro_lf_path):
@@ -425,38 +431,64 @@ for scen_short, scen_path in macro_scenario_paths.items():
             pd.to_numeric(macro_lf["Annual_Flow"], errors="coerce")
             .fillna(0.0)
         )
+        macro_lf["Fuel_Commodity"] = macro_lf.apply(infer_liquid_fuel_commodity, axis=1)
 
-        macro_lf["Plot_Category"] = macro_lf.apply(
-            map_macro_liquid_fuel_source,
-            axis=1,
-        )
+        # ── 2a. Total demand per fuel from the Use category rows ──────────
+        # Category "Gasoline Use" / "Diesel Use" / "Jetfuel Use" rows hold
+        # the single authoritative demand volume for each fuel type.
+        _CAT_TO_FUEL = {
+            "Gasoline Use": "Gasoline",
+            "Diesel Use":   "Diesel",
+            "Jetfuel Use":  "JetFuel",
+        }
+        demand_vol_by_fuel = {}
+        for _, r in macro_lf.iterrows():
+            fuel = _CAT_TO_FUEL.get(str(r.get("Category", "")).strip())
+            if fuel is not None:
+                demand_vol_by_fuel[fuel] = (
+                    demand_vol_by_fuel.get(fuel, 0) + abs(r["Annual_Flow"])
+                )
 
-        macro_lf["Fuel_Commodity"] = macro_lf.apply(
-            infer_liquid_fuel_commodity,
-            axis=1,
-        )
+        # ── 2b. Non-fossil supply volumes from the LF balance ─────────────
+        # Fossil supply is incomplete in the balance file for scenarios where
+        # it acts as residual supplier, so we derive fossil = demand − non-fossil.
+        macro_lf["Plot_Category"] = macro_lf.apply(map_macro_liquid_fuel_source, axis=1)
 
-        macro_lf = macro_lf[
+        macro_lf_nonfossil = macro_lf[
             macro_lf["Plot_Category"].notna()
             & macro_lf["Fuel_Commodity"].notna()
+            & (macro_lf["Plot_Category"] != "Conventional Liquid Fuels")
         ].copy()
 
-        total_vol_by_fuel = (
-            macro_lf.groupby("Fuel_Commodity")["Annual_Flow"]
-            .apply(lambda x: x.abs().sum())
-        )
-        lf_by_source_fuel = (
-            macro_lf.groupby(["Plot_Category", "Fuel_Commodity"])["Annual_Flow"]
+        nonfossil_by_src_fuel = (
+            macro_lf_nonfossil.groupby(["Plot_Category", "Fuel_Commodity"])["Annual_Flow"]
             .apply(lambda x: x.abs().sum())
         )
 
+        # ── 2c. Allocate CO2 using demand as denominator ──────────────────
         lf_emissions_dict = {}
-        for (plot_cat, fuel_comm), vol in lf_by_source_fuel.items():
-            total = total_vol_by_fuel.get(fuel_comm, 0)
+
+        # Non-fossil sources
+        for (plot_cat, fuel_comm), vol in nonfossil_by_src_fuel.items():
+            total_demand = demand_vol_by_fuel.get(fuel_comm, 0)
             actual_co2 = lf_co2_actual.get(fuel_comm, 0)
-            if total > 0 and actual_co2 > 0:
+            if total_demand > 0 and actual_co2 > 0:
                 lf_emissions_dict[plot_cat] = (
-                    lf_emissions_dict.get(plot_cat, 0) + actual_co2 * (vol / total)
+                    lf_emissions_dict.get(plot_cat, 0) + actual_co2 * (vol / total_demand)
+                )
+
+        # Fossil = demand − sum of all tracked non-fossil supply
+        nonfossil_total_by_fuel = {}
+        for (_, fuel_comm), vol in nonfossil_by_src_fuel.items():
+            nonfossil_total_by_fuel[fuel_comm] = nonfossil_total_by_fuel.get(fuel_comm, 0) + vol
+
+        for fuel_comm, total_demand in demand_vol_by_fuel.items():
+            fossil_vol = total_demand - nonfossil_total_by_fuel.get(fuel_comm, 0)
+            actual_co2 = lf_co2_actual.get(fuel_comm, 0)
+            if total_demand > 0 and actual_co2 > 0 and fossil_vol > 0:
+                lf_emissions_dict["Conventional Liquid Fuels"] = (
+                    lf_emissions_dict.get("Conventional Liquid Fuels", 0)
+                    + actual_co2 * (fossil_vol / total_demand)
                 )
 
         for cat, val in lf_emissions_dict.items():
