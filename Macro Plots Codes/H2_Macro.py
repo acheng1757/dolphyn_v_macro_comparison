@@ -1,13 +1,15 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, load_annual_nsd
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
@@ -97,6 +99,10 @@ def map_macro_h2_category(row):
     if sector == "Ethylene":
         return "Ethylene Sector"
 
+    # Ethanol upgrading assets (Transmission sector) consume H2 for hydroprocessing
+    if sector == "Transmission":
+        return "Ethanol Upgrading"
+
     return None
 
 
@@ -106,9 +112,11 @@ def map_macro_h2_category(row):
 
 desired_order = [
     "Demand",
+    "Non-Served Demand",
     "Synthetic FT",
     "Synthetic NG",
     "Ethylene Sector",
+    "Ethanol Upgrading",
     "Electrolyzer",
     "NG CCS H2",
     "BECCS H2",
@@ -179,6 +187,11 @@ for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
 
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        nsd = load_annual_nsd(scen_path, "h2_") * conversion_factor
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
+
 macro_combined_data = macro_combined_data[desired_order]
 
 
@@ -217,7 +230,9 @@ category_colors = {
     "Synthetic FT": "purple",
     "Synthetic NG": "#e8905a",
     "Ethylene Sector": "#e8630a",
+    "Ethanol Upgrading": "#d4a017",
     "Demand": "bisque",
+    "Non-Served Demand": "red",
 }
 
 category_names = {
@@ -227,7 +242,9 @@ category_names = {
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",
     "Ethylene Sector": "Ethylene Sector",
+    "Ethanol Upgrading": "Ethanol Upgrading",
     "Demand": "Demand",
+    "Non-Served Demand": "Non-Served Demand",
 }
 
 
@@ -253,8 +270,10 @@ ax.set_ylabel("")
 ax.set_title("H2 Balance (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(-18, 18)
-ax.set_xticks([-16, -8, 0, 8, 16])
+_pos_ext = plot_df.clip(lower=0).sum(axis=1).max()
+_neg_ext = plot_df.clip(upper=0).sum(axis=1).min()
+_pad = max(abs(_pos_ext), abs(_neg_ext)) * 0.12 or 1.0
+ax.set_xlim(_neg_ext - _pad, _pos_ext + _pad)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top
@@ -277,3 +296,36 @@ ax.legend(
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.34)
 
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+
+_active_cols = [col for col in desired_order if plot_df[col].abs().sum() > 0]
+
+fig_plotly = go.Figure()
+for col in _active_cols:
+    fig_plotly.add_trace(go.Bar(
+        name=category_names.get(col, col),
+        y=scenario_names,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=category_colors.get(col, '#333333'),
+        hovertemplate='%{fullData.name}: %{x:.4f} EJ<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='H2 Balance (EJ)',
+    xaxis_title='EJ',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'h2_macro_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

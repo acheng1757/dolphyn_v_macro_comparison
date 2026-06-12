@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
@@ -14,7 +16,7 @@ import sys
 # If there is both consumption AND production, then it will show as a net total in the plot
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, load_annual_nsd
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -34,6 +36,7 @@ macro_conversion_factor = 3.6e-9
 
 desired_order = [
     "Demand",
+    "Non-Served Demand",
     "Bio MeOH - Gasoline Non CCS",
     "Bio MeOH - Gasoline Mid CCS",
     "Bio MeOH - Gasoline High CCS",
@@ -62,10 +65,11 @@ category_colors = {
     "SFT CCS": "indigo",
     "Ethylene Gasoline": "#e8630a",
     "Ethanol to Gasoline":      "#ffd700",
-    "Ethanol to Diesel":        "#daa520",
-    "Ethanol to JetFuel":       "#b8860b",
-    "Ethanol to Diesel JetFuel": "#cd853f",
+    "Ethanol to Diesel":        "#ffd700",
+    "Ethanol to JetFuel":       "#ffd700",
+    "Ethanol to Diesel JetFuel": "#ffd700",
     "Fossil": "grey",
+    "Non-Served Demand": "red",
 }
 
 label_map = {
@@ -78,12 +82,13 @@ label_map = {
     "Bio FT (High Diesel) High CCS": "Bio-FT (Diesel) CC99",
     "SFT Non CCS": "Syn-FT (Jet)",
     "SFT CCS": "Syn-FT (Jet) CC99",
-    "Ethylene Gasoline": "Ethylene Naphtha",
+    "Ethylene Gasoline": "Ethylene Gasoline",
     "Ethanol to Gasoline":      "Eth. Upgrading (Gasoline)",
     "Ethanol to Diesel":        "Eth. Upgrading (Diesel)",
     "Ethanol to JetFuel":       "Eth. Upgrading (JetFuel)",
     "Ethanol to Diesel JetFuel": "Eth. Upgrading (Diesel+Jet)",
     "Fossil": "Fossil Liquids",
+    "Non-Served Demand": "Non-Served Demand",
 }
 
 
@@ -343,6 +348,11 @@ for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
 
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        nsd = load_annual_nsd(scen_path, ["gasoline_", "diesel_", "jetfuel_"]) * macro_conversion_factor
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
+
 macro_combined_data = (
     macro_combined_data
     .reindex(scenario_names)
@@ -391,8 +401,10 @@ ax.set_ylabel("")
 ax.set_title("Total LF Prod. (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(-14, 14)
-ax.set_xticks([-12, -8, -4, 0, 4, 8, 12])
+_pos_ext = plot_df.clip(lower=0).sum(axis=1).max()
+_neg_ext = plot_df.clip(upper=0).sum(axis=1).min()
+_pad = max(abs(_pos_ext), abs(_neg_ext)) * 0.12 or 1.0
+ax.set_xlim(_neg_ext - _pad, _pos_ext + _pad)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top
@@ -415,3 +427,36 @@ ax.legend(
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.40)
 
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+
+_active_cols = [col for col in desired_order if plot_df[col].abs().sum() > 0]
+
+fig_plotly = go.Figure()
+for col in _active_cols:
+    fig_plotly.add_trace(go.Bar(
+        name=label_map.get(col, col),
+        y=scenario_names,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=category_colors.get(col, '#333333'),
+        hovertemplate='%{fullData.name}: %{x:.4f} EJ<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='Total LF Prod. (EJ)',
+    xaxis_title='EJ',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lf_macro_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

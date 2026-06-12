@@ -4,13 +4,15 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, load_annual_nsd
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -28,6 +30,8 @@ MWH_TO_EJ = 3.6e-9  # 1 MWh = 3.6e9 J; 1 EJ = 1e18 J
 # ---------------------------------------------------------------------
 
 desired_order = [
+    "Ethanol Demand",
+    "Non-Served Demand",
     "DryMill_Existing_Non_CCS",
     "DryMill_CCS_60_RETROFIT",
     "DryMill_CCS_90_RETROFIT",
@@ -41,7 +45,6 @@ desired_order = [
     "Ethanol to Diesel",
     "Ethanol to JetFuel",
     "Ethanol to Diesel JetFuel",
-    "Ethanol Demand",
 ]
 
 category_colors = {
@@ -59,6 +62,7 @@ category_colors = {
     "Ethanol to JetFuel":        "chocolate",
     "Ethanol to Diesel JetFuel": "limegreen",
     "Ethanol Demand":           "bisque",
+    "Non-Served Demand":        "red",
 }
 
 label_map = {
@@ -76,6 +80,7 @@ label_map = {
     "Ethanol to JetFuel":        "Eth. Upgrading (JetFuel)",
     "Ethanol to Diesel JetFuel": "Eth. Upgrading (Diesel+Jet)",
     "Ethanol Demand":            "Ethanol Demand",
+    "Non-Served Demand":         "Non-Served Demand",
 }
 
 # ---------------------------------------------------------------------
@@ -225,6 +230,11 @@ for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
 
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        nsd = load_annual_nsd(scen_path, "ethanol_demand_") * MWH_TO_EJ
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
+
 macro_combined_data = (
     macro_combined_data
     .reindex(scenario_names)
@@ -299,3 +309,34 @@ ax.legend(
 
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.40)
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+
+fig_plotly = go.Figure()
+for col in active_cols:
+    fig_plotly.add_trace(go.Bar(
+        name=label_map.get(col, col),
+        y=scenario_names,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=category_colors.get(col, '#333333'),
+        hovertemplate='%{fullData.name}: %{x:.4f} EJ<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='Ethanol Balance (EJ)',
+    xaxis_title='EJ',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ethanol_macro_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

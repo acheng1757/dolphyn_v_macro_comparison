@@ -1,13 +1,15 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, load_annual_nsd
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
@@ -74,6 +76,9 @@ def map_macro_power_category(row):
         return "Synthetic FT"
 
     if sector == "Transmission":
+        edge = str(row.get("Edge", "")).lower()
+        if "ethanol_to_" in edge:
+            return "Ethanol Upgrading"
         return "Transmission"
 
     return None
@@ -84,6 +89,7 @@ def map_macro_power_category(row):
 
 desired_order = [
     "Demand",
+    "Non-Served Demand",
     "Transmission",
     "H2 Production",
     "Sorbent DAC Input",
@@ -92,6 +98,7 @@ desired_order = [
     "Ethanol Input",
     "Synthetic FT",
     "Synthetic NG",
+    "Ethanol Upgrading",
     "Hydro",
     "Nuclear",
     "NG",
@@ -165,6 +172,12 @@ for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
 
+# Non-served demand: negative because it sits on the consumption side
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        nsd = load_annual_nsd(scen_path, "elec_") * conversion_factor
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
+
 macro_combined_data = macro_combined_data[desired_order]
 
 
@@ -206,16 +219,19 @@ category_colors = {
     "Bioenergy Input": "seagreen",
     "Ethylene Input": "#e8630a",
     "Ethanol Input": "#d4a017",
+    "Ethanol Upgrading": "#c8b040",
     "Synthetic NG": "#e8905a",
     "Synthetic FT": "purple",
     "H2 Production": "lightgreen",
     "Demand": "bisque",
+    "Non-Served Demand": "red",
     "Transmission": "rosybrown",
 }
 
 category_names = {
     "Demand": "Demand",
-    "Transmission": "T&D Losses",
+    "Non-Served Demand": "Non-Served Demand",
+    "Transmission": "Transmission",
     "H2 Production": "Electrolyzer",
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",
@@ -223,6 +239,7 @@ category_names = {
     "Sorbent DAC Input": "Sorbent DAC",
     "Ethylene Input": "Ethylene Sector",
     "Ethanol Input": "Ethanol Sector",
+    "Ethanol Upgrading": "Eth. Upgrading",
     "Hydro": "Hydro",
     "Nuclear": "Nuclear",
     "NG": "NG",
@@ -254,8 +271,10 @@ ax.set_ylabel("")
 ax.set_title("Electricity Balance (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(-50, 50)
-ax.set_xticks([-40, -20, 0, 20, 40])
+_pos_ext = plot_df.clip(lower=0).sum(axis=1).max()
+_neg_ext = plot_df.clip(upper=0).sum(axis=1).min()
+_pad = max(abs(_pos_ext), abs(_neg_ext)) * 0.12 or 1.0
+ax.set_xlim(_neg_ext - _pad, _pos_ext + _pad)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top
@@ -278,3 +297,36 @@ ax.legend(
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.34)
 
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+
+_active_cols = [col for col in desired_order if plot_df[col].abs().sum() > 0]
+
+fig_plotly = go.Figure()
+for col in _active_cols:
+    fig_plotly.add_trace(go.Bar(
+        name=category_names.get(col, col),
+        y=scenario_names,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=category_colors.get(col, '#333333'),
+        hovertemplate='%{fullData.name}: %{x:.4f} EJ<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='Electricity Balance (EJ)',
+    xaxis_title='EJ',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'power_macro_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

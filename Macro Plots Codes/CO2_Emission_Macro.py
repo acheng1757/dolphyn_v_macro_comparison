@@ -5,6 +5,8 @@ import os
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
@@ -42,6 +44,7 @@ desired_order = [
     "Ethylene and processes",
     "Ethanol and processes",
     "Ethanol Combustion",
+    "Ethanol LF Combustion",
 ]
 
 category_colors = {
@@ -60,10 +63,11 @@ category_colors = {
     "Ethylene and processes": "#e8630a",
     "Ethanol and processes": "#d4a017",
     "Ethanol Combustion": "#f0cc6a",
+    "Ethanol LF Combustion": "#c8b040",
 }
 
 category_names = {
-    "Biomass Capture": "Biomass",
+    "Biomass Capture": " Non-Ethanol Biomass",
     "Ethanol Biomass Capture": "Ethanol Biomass",
     "DAC Capture": "DAC",
     "Conventional Liquid Fuels": "Fossil Liquid Fuels",
@@ -78,6 +82,7 @@ category_names = {
     "Ethylene and processes": "Ethylene",
     "Ethanol and processes": "Ethanol Process",
     "Ethanol Combustion": "Ethanol Combustion",
+    "Ethanol LF Combustion": "Ethanol LF Combustion",
 }
 
 
@@ -112,28 +117,6 @@ def find_macro_asset_path(scen_short, filename):
         + "\n  ".join(candidate_paths)
     )
 
-
-def read_liquid_fuels_emission_rates(json_path):
-    """
-    Read liquid fuel end-use emission rates from liquid_fuels_end_use.json.
-
-    Returns rates by commodity:
-      Gasoline, JetFuel, Diesel
-    """
-    with open(json_path, "r") as f:
-        data = json.load(f)
-
-    rates = {}
-
-    for block in data.get("FuelsEndUse", []):
-        for item in block.get("instance_data", []):
-            commodity = item.get("fuel_commodity")
-            rate = item.get("emission_rate")
-
-            if commodity is not None and rate is not None:
-                rates[str(commodity)] = float(rate)
-
-    return rates
 
 
 def read_ng_emission_rate(json_path):
@@ -265,22 +248,17 @@ def read_ethanol_emission_rate(json_path):
 
 def map_macro_ethanol_source(row):
     """
-    Map ethanol balance supply rows to source categories for end-use emissions.
+    Map ethanol balance demand rows to source categories for end-use emissions.
 
-    Mirrors map_macro_liquid_fuel_source: only supply (production) rows
-    from the Ethanol sector are mapped; demand rows and intermediate
-    consumption rows (e.g. by ethylene plants) are excluded.
+    Only the direct end-use demand (Demand sector) is used; production
+    supply rows and upgrading consumption rows are excluded.  The model
+    does not emit a separate CO2 edge for direct ethanol combustion
+    (biogenic carbon-neutral treatment), so this reconstruction is kept
+    strictly to the demand volume × emission rate.
     """
     sector = str(row.get("Sector", "")).strip()
-    edge = str(row.get("Edge", "")).strip().lower()
 
     if sector == "Demand":
-        return None
-
-    if "ethanol_consumption_edge" in edge:
-        return None
-
-    if sector == "Ethanol":
         return "Ethanol Combustion"
 
     return None
@@ -309,6 +287,12 @@ def map_macro_liquid_fuel_source(row):
 
     if sector == "Ethylene":
         return "Ethylene and processes"
+
+    # Ethanol_to_X upgrading assets sit in the Transmission sector;
+    # Step 1 now assigns them Gasoline/Diesel/Jetfuel Balances so they
+    # land in the Liquid_Fuels file — attribute their combustion here.
+    if sector == "Transmission":
+        return "Ethanol LF Combustion"
 
     return None
 
@@ -379,6 +363,19 @@ for scen_short, scen_path in macro_scenario_paths.items():
         * TONNE_TO_MT
     )
 
+    # Capture actual LF CO2 per fuel type (in Mt) before those rows are excluded.
+    # This avoids relying on JSON emission rates, which may differ from what the
+    # model computed internally (e.g. gasoline CO2 uses rate=1.0 in some scenarios).
+    lf_co2_actual = {}
+    for _, r in macro_co2[macro_co2["Sector"] == "Liquid fuels"].iterrows():
+        e = r["Edge"].lower()
+        if "global_gasoline_use" in e:
+            lf_co2_actual["Gasoline"] = lf_co2_actual.get("Gasoline", 0) + r["Annual_Flow"]
+        elif "global_diesel_use" in e:
+            lf_co2_actual["Diesel"] = lf_co2_actual.get("Diesel", 0) + r["Annual_Flow"]
+        elif "global_jetfuel_use" in e:
+            lf_co2_actual["JetFuel"] = lf_co2_actual.get("JetFuel", 0) + r["Annual_Flow"]
+
     macro_co2["Plot_Category"] = macro_co2.apply(
         map_macro_direct_co2_category,
         axis=1,
@@ -404,84 +401,73 @@ for scen_short, scen_path in macro_scenario_paths.items():
 
     # -------------------------------------------------------------
     # 2. Reconstruct liquid-fuel end-use emissions by fuel source
+    #
+    # Uses the actual CO2 values from the CO2 balance file (captured
+    # above in lf_co2_actual) and distributes them proportionally to
+    # each supply source based on volume fractions in the LF balance
+    # file.  This avoids relying on JSON emission rates that may differ
+    # from the model's internal accounting.
     # -------------------------------------------------------------
 
     if os.path.exists(macro_lf_path):
-        try:
-            liquid_fuels_json_path = find_macro_asset_path(scen_short, "liquid_fuels_end_use.json")
-            liquid_fuel_emission_rates = read_liquid_fuels_emission_rates(liquid_fuels_json_path)
-        except FileNotFoundError:
-            print(f"  Warning: liquid_fuels_end_use.json not found for scenario {scen_short}, skipping liquid fuel emissions.")
-        else:
-            macro_lf = pd.read_csv(macro_lf_path)
-            macro_lf.columns = macro_lf.columns.str.strip()
+        macro_lf = pd.read_csv(macro_lf_path)
+        macro_lf.columns = macro_lf.columns.str.strip()
 
-            missing_cols = [c for c in required_cols if c not in macro_lf.columns]
+        missing_cols = [c for c in required_cols if c not in macro_lf.columns]
 
-            if missing_cols:
-                raise ValueError(
-                    f"{macro_lf_path} is missing required columns: {missing_cols}. "
-                    f"Available columns are: {macro_lf.columns.tolist()}"
+        if missing_cols:
+            raise ValueError(
+                f"{macro_lf_path} is missing required columns: {missing_cols}. "
+                f"Available columns are: {macro_lf.columns.tolist()}"
+            )
+
+        macro_lf["Annual_Flow"] = (
+            pd.to_numeric(macro_lf["Annual_Flow"], errors="coerce")
+            .fillna(0.0)
+        )
+
+        macro_lf["Plot_Category"] = macro_lf.apply(
+            map_macro_liquid_fuel_source,
+            axis=1,
+        )
+
+        macro_lf["Fuel_Commodity"] = macro_lf.apply(
+            infer_liquid_fuel_commodity,
+            axis=1,
+        )
+
+        macro_lf = macro_lf[
+            macro_lf["Plot_Category"].notna()
+            & macro_lf["Fuel_Commodity"].notna()
+        ].copy()
+
+        total_vol_by_fuel = (
+            macro_lf.groupby("Fuel_Commodity")["Annual_Flow"]
+            .apply(lambda x: x.abs().sum())
+        )
+        lf_by_source_fuel = (
+            macro_lf.groupby(["Plot_Category", "Fuel_Commodity"])["Annual_Flow"]
+            .apply(lambda x: x.abs().sum())
+        )
+
+        lf_emissions_dict = {}
+        for (plot_cat, fuel_comm), vol in lf_by_source_fuel.items():
+            total = total_vol_by_fuel.get(fuel_comm, 0)
+            actual_co2 = lf_co2_actual.get(fuel_comm, 0)
+            if total > 0 and actual_co2 > 0:
+                lf_emissions_dict[plot_cat] = (
+                    lf_emissions_dict.get(plot_cat, 0) + actual_co2 * (vol / total)
                 )
 
-            macro_lf["Annual_Flow"] = (
-                pd.to_numeric(macro_lf["Annual_Flow"], errors="coerce")
-                .fillna(0.0)
+        for cat, val in lf_emissions_dict.items():
+            macro_rows.append(
+                {
+                    "Scenario": scen_short,
+                    "Plot_Category": cat,
+                    "Value": val,
+                    "Source": "Reconstructed liquid fuel end use",
+                }
             )
-
-            macro_lf["Plot_Category"] = macro_lf.apply(
-                map_macro_liquid_fuel_source,
-                axis=1,
-            )
-
-            macro_lf["Fuel_Commodity"] = macro_lf.apply(
-                infer_liquid_fuel_commodity,
-                axis=1,
-            )
-
-            macro_lf = macro_lf[
-                macro_lf["Plot_Category"].notna()
-                & macro_lf["Fuel_Commodity"].notna()
-            ].copy()
-
-            macro_lf["Emission_Rate"] = macro_lf["Fuel_Commodity"].map(
-                liquid_fuel_emission_rates
-            )
-
-            if macro_lf["Emission_Rate"].isna().any():
-                missing_fuels = sorted(
-                    macro_lf.loc[
-                        macro_lf["Emission_Rate"].isna(),
-                        "Fuel_Commodity",
-                    ].unique()
-                )
-
-                raise ValueError(
-                    "Missing liquid fuel emission rates for: "
-                    f"{missing_fuels}. Rates found: {liquid_fuel_emission_rates}"
-                )
-
-            macro_lf["End_Use_Emission_Mt"] = (
-                macro_lf["Annual_Flow"].abs()
-                * macro_lf["Emission_Rate"]
-                * TONNE_TO_MT
-            )
-
-            lf_emissions = (
-                macro_lf
-                .groupby("Plot_Category")["End_Use_Emission_Mt"]
-                .sum()
-            )
-
-            for category, value in lf_emissions.items():
-                macro_rows.append(
-                    {
-                        "Scenario": scen_short,
-                        "Plot_Category": category,
-                        "Value": value,
-                        "Source": "Reconstructed liquid fuel end use",
-                    }
-                )
     else:
         print(f"  Warning: no liquid fuels balance file for scenario {scen_short}, skipping liquid fuel emissions.")
 
@@ -675,8 +661,10 @@ ax.set_ylabel("")
 ax.set_title("CO2 Emission Balance (Mt)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(-1750, 1750)
-ax.set_xticks([-1500, -750, 0, 750, 1500])
+_pos_ext = plot_df.clip(lower=0).sum(axis=1).max()
+_neg_ext = plot_df.clip(upper=0).sum(axis=1).min()
+_pad = max(abs(_pos_ext), abs(_neg_ext)) * 0.12 or 1.0
+ax.set_xlim(_neg_ext - _pad, _pos_ext + _pad)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top
@@ -698,6 +686,39 @@ ax.legend(
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.36)
 
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+
+_active_cols = [col for col in desired_order if plot_df[col].abs().sum() > 0]
+
+fig_plotly = go.Figure()
+for col in _active_cols:
+    fig_plotly.add_trace(go.Bar(
+        name=category_names.get(col, col),
+        y=scenario_names,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=category_colors.get(col, '#333333'),
+        hovertemplate='%{fullData.name}: %{x:.2f} Mt<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='CO2 Emission Balance (Mt)',
+    xaxis_title='Mt',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'co2_emission_macro_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')
 
 if scenarios_without_ethanol_end_use:
     print("\nException: the following scenarios do not have ethanol end use (ethanol_end_use.json not found):")

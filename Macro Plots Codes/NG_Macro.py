@@ -5,7 +5,6 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
@@ -19,7 +18,7 @@ import sys
 # If there is both consumption AND production, then it will show as a net total in the plot
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, load_annual_nsd
 
 pd.set_option("display.max_columns", None)
 plt.rcParams["font.family"] = "Arial"
@@ -33,6 +32,7 @@ MWH_TO_EJ = 3.6e-9
 
 desired_order = [
     "NG_Demand",
+    "Non-Served Demand",
     "Power",
     "H2",
     "CSC",
@@ -53,6 +53,7 @@ category_colors = {
     "BESC": "seagreen",
     "Ethylene": "#e8630a",
     "Ethanol": "#d4a017",
+    "Non-Served Demand": "red",
 }
 
 category_names = {
@@ -65,6 +66,7 @@ category_names = {
     "BESC": "Bio NG",
     "Ethylene": "Ethylene Sector",
     "Ethanol": "Ethanol Sector",
+    "Non-Served Demand": "Non-Served Demand",
 }
 
 # ---------------------------------------------------------------------
@@ -190,6 +192,11 @@ for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
 
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        nsd = load_annual_nsd(scen_path, ["ng_", "natgas_"]) * MWH_TO_EJ
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
+
 macro_combined_data = macro_combined_data[desired_order]
 
 
@@ -238,8 +245,10 @@ ax.set_ylabel("")
 ax.set_title("NG Balance (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(-12, 12)
-ax.set_xticks([-10, -5, 0, 5, 10])
+_pos_ext = plot_df.clip(lower=0).sum(axis=1).max()
+_neg_ext = plot_df.clip(upper=0).sum(axis=1).min()
+_pad = max(abs(_pos_ext), abs(_neg_ext)) * 0.12 or 1.0
+ax.set_xlim(_neg_ext - _pad, _pos_ext + _pad)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top
@@ -295,4 +304,3 @@ fig_plotly.update_layout(
 
 html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ng_macro_interactive.html')
 fig_plotly.write_html(html_path)
-webbrowser.open(f'file://{html_path}')

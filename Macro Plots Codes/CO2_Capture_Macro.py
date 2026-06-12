@@ -4,6 +4,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import webbrowser
 import sys
 
 # ---------------------------------------------------------------------
@@ -240,8 +242,10 @@ ax.set_ylabel("")
 ax.set_title("Captured CO2 Balance (Mt)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
-ax.set_xlim(-1250, 1250)
-ax.set_xticks([-1000, -500, 0, 500, 1000])
+_pos_ext = plot_df.clip(lower=0).sum(axis=1).max()
+_neg_ext = plot_df.clip(upper=0).sum(axis=1).min()
+_pad = max(abs(_pos_ext), abs(_neg_ext)) * 0.12 or 1.0
+ax.set_xlim(_neg_ext - _pad, _pos_ext + _pad)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 
 # Keep HB-HS at the top
@@ -288,3 +292,36 @@ ax.legend(
 plt.subplots_adjust(left=0.20, right=0.98, top=0.86, bottom=0.36)
 
 plt.show()
+
+# ---------------------------------------------------------------------------
+# Interactive Plotly version — hover to see individual category values
+# ---------------------------------------------------------------------------
+
+_active_cols = [col for col in desired_order if plot_df[col].abs().sum() > 0]
+
+fig_plotly = go.Figure()
+for col in _active_cols:
+    fig_plotly.add_trace(go.Bar(
+        name=category_names.get(col, col),
+        y=scenario_names,
+        x=plot_df[col].tolist(),
+        orientation='h',
+        marker_color=category_colors.get(col, '#333333'),
+        hovertemplate='%{fullData.name}: %{x:.2f} Mt<extra></extra>',
+    ))
+
+fig_plotly.update_layout(
+    barmode='relative',
+    title='Captured CO2 Balance (Mt)',
+    xaxis_title='Mt',
+    yaxis=dict(autorange='reversed'),
+    legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
+                 y1=len(plot_df) - 0.5, yref='y',
+                 line=dict(color='black', width=1, dash='dash'))],
+    height=max(400, 80 * len(plot_df)),
+)
+
+html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'co2_capture_macro_interactive.html')
+fig_plotly.write_html(html_path)
+webbrowser.open(f'file://{html_path}')

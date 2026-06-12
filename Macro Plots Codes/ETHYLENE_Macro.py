@@ -13,7 +13,7 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, macro_input_paths
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, macro_input_paths, load_annual_nsd
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -26,6 +26,7 @@ plt.rcParams["font.family"] = "Arial"
 
 desired_order = [
     "Ethylene Demand",
+    "Non-Served Demand",
     "Existing TSC:H2",
     "Ret-TSC:H2",
     "Ret-TSC",
@@ -87,6 +88,7 @@ category_colors = {
     "Dehydration NGfuel":   "#57c46a",
     "Dehydration H2fuel":   "#1a6e30",
     "Ethylene Demand":      "bisque",
+    "Non-Served Demand":    "red",
 }
 
 # Pattern encodes build type: "" = new build, "//" = retrofit (Ret-), ".." = existing
@@ -114,6 +116,7 @@ category_hatch = {
     "Dehydration NGfuel":   "",
     "Dehydration H2fuel":   "",
     "Ethylene Demand":      "",
+    "Non-Served Demand":    "",
 }
 
 label_map = {
@@ -147,6 +150,7 @@ label_map = {
     "Dehydration NGfuel":   "Dehydration NGfuel",
     "Dehydration H2fuel":   "Dehydration H2fuel",
     "Ethylene Demand":      "Ethylene Demand",
+    "Non-Served Demand":    "Non-Served Demand",
 
     "ESC":                  "ESC",
     "Ret-ESC":              "Ret-ESC", # confirm grouping
@@ -318,6 +322,12 @@ else:
 for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
+
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        # NSD file values are in the same raw units as Annual_Flow (no conversion)
+        nsd = load_annual_nsd(scen_path, "ethylene_demand_")
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
 
 macro_combined_data = (
     macro_combined_data

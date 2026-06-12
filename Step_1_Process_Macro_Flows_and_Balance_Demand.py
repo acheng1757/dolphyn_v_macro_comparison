@@ -11,24 +11,17 @@ dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn
 dolphyn_results_folder = "Results_1"
 
 # Only edit this list: (label, results_path_relative_to_macro_base_dir, system_folder)
-#_scenarios = [
-#    ("1", "intuition_test/1_ethanol_ccs/results_001/results", "system"),
-#    ("2", "intuition_test/1a_ethanol_ccs_cellulosic_Dolphyn/results_001/results", "system"),
-#    ("3", "intuition_test/1b_ethanol_ccs_cellulosic_NREL/results_001/results", "system"),
-#]
-
 _scenarios = [
-    #("9", "6_9_168_restart/results_009/results", "system"),
-    #("10", "6_9_168_restart/results_010/results", "system"),
-    #("11", "6_9_168_restart/results_011/results", "system"),
-    #("17", "6_9_168_restart/results_017/results", "system"),
-    #("18", "6_9_168_restart/results_018/results", "system"),
-    #("19", "6_9_168_restart/results_019/results", "system"),
-    #("20", "6_9_168_restart/results_020/results", "system"),
-    ("23", "6_9_168_restart/results_023/results", "system"),
-    ("25", "6_9_168_restart/results_025/results", "system"),
-    ("26", "6_9_168_restart/results_026/results", "system"),
+    ("1", "intuition_test/2_ethanol_ccs_lf/results_001/results", "system"),
+    ("2", "intuition_test/2_ethanol_ccs_lf/results_002/results", "system"),
+    ("3", "intuition_test/2_ethanol_ccs_lf/results_005/results", "system"),
 ]
+
+#_scenarios = [
+#    ("23", "6_9_168_restart/results_023/results", "system"),
+#    ("25", "6_9_168_restart/results_025/results", "system"),
+#    ("26", "6_9_168_restart/results_026/results", "system"),
+#
 
 scenario_names          = [label  for label, _,    _   in _scenarios]
 scenario_folders        = [path   for _,     path, _   in _scenarios]
@@ -1203,6 +1196,71 @@ def add_balance_labels(df):
     )
     df.loc[is_transmission_power, "Balance"] = "Power"
 
+    # Ethanol upgrading assets sit in the Transmission sector; assign their
+    # liquid-fuel output edges the correct LF Balance so they land in the
+    # Liquid_Fuels balance file and are picked up by the emissions pipeline.
+    # Diesel_JetFuel must be matched before plain Diesel to avoid overlap.
+    is_transmission_ethanol_to_gasoline = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_gasoline", na=False) &
+        edge_lower.str.contains("gasoline_production_edge", na=False)
+    )
+    df.loc[is_transmission_ethanol_to_gasoline, "Balance"] = "Gasoline"
+
+    is_transmission_ethanol_to_dj_diesel = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_diesel_jetfuel", na=False) &
+        edge_lower.str.contains("diesel_production_edge", na=False)
+    )
+    df.loc[is_transmission_ethanol_to_dj_diesel, "Balance"] = "Diesel"
+
+    is_transmission_ethanol_to_dj_jetfuel = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_diesel_jetfuel", na=False) &
+        edge_lower.str.contains("jetfuel_production_edge", na=False)
+    )
+    df.loc[is_transmission_ethanol_to_dj_jetfuel, "Balance"] = "Jetfuel"
+
+    is_transmission_ethanol_to_diesel = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_diesel", na=False) &
+        (~edge_lower.str.contains("ethanol_to_diesel_jetfuel", na=False)) &
+        edge_lower.str.contains("diesel_production_edge", na=False)
+    )
+    df.loc[is_transmission_ethanol_to_diesel, "Balance"] = "Diesel"
+
+    is_transmission_ethanol_to_jetfuel = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_jetfuel", na=False) &
+        edge_lower.str.contains("jetfuel_production_edge", na=False)
+    )
+    df.loc[is_transmission_ethanol_to_jetfuel, "Balance"] = "Jetfuel"
+
+    is_transmission_ethanol_upgrade_h2 = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_", na=False) &
+        edge_lower.str.contains("h2_consumption_edge", na=False)
+    )
+    df.loc[is_transmission_ethanol_upgrade_h2, "Balance"] = "H2"
+
+    is_transmission_ethanol_upgrade_elec = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_", na=False) &
+        (
+            edge_lower.str.contains("elec_production_edge", na=False) |
+            edge_lower.str.contains("elec_consumption_edge", na=False)
+        )
+    )
+    df.loc[is_transmission_ethanol_upgrade_elec, "Balance"] = "Power"
+
+    # Ethanol consumed by upgrading plants (shows as negative in Ethanol balance)
+    is_transmission_ethanol_upgrade_eth = (
+        is_transmission &
+        edge_lower.str.contains("ethanol_to_", na=False) &
+        edge_lower.str.contains("ethanol_consumption_edge", na=False)
+    )
+    df.loc[is_transmission_ethanol_upgrade_eth, "Balance"] = "Ethanol"
+
     # -----------------------------------------------------------------
     # Ethylene sector
     # -----------------------------------------------------------------
@@ -1353,6 +1411,12 @@ def add_balance_labels(df):
         edge_lower.str.contains("jetfuel_production_edge", na=False)
     )
     df.loc[is_ethanol_jetfuel, "Balance"] = "JetFuel"
+
+    is_ethanol_h2 = (
+        is_ethanol &
+        edge_lower.str.contains("h2_consumption_edge", na=False)
+    )
+    df.loc[is_ethanol_h2, "Balance"] = "H2"
 
     return df
 
@@ -1599,6 +1663,55 @@ def process_macro_scenario(scenario):
         print(unmatched[["Edge", "Annual_Flow"]].head(50).to_string(index=False))
 
     return df
+
+
+# ---------------------------------------------------------------------
+# Non-served demand helper
+# ---------------------------------------------------------------------
+
+def load_annual_nsd(scen_path, col_prefixes):
+    """
+    Return the TDR-weighted annual non-served demand (MWh) for a scenario,
+    summed across all NSD columns whose names start with any entry in col_prefixes.
+
+    scen_path    : results path relative to macro_base_dir
+    col_prefixes : str or list of str — column name prefix(es) to match
+
+    Returns 0.0 if the file is absent or has no matching columns.
+    """
+    if isinstance(col_prefixes, str):
+        col_prefixes = [col_prefixes]
+
+    nsd_path = os.path.join(macro_base_dir, scen_path, "non_served_demand.csv")
+    tw_path  = os.path.join(macro_base_dir, scen_path, "time_weights.csv")
+
+    if not os.path.exists(nsd_path) or not os.path.exists(tw_path):
+        return 0.0
+
+    nsd = pd.read_csv(nsd_path)
+    tw  = pd.read_csv(tw_path)
+    nsd.columns = nsd.columns.str.strip()
+    tw.columns  = tw.columns.str.strip()
+
+    commodity_cols = [
+        c for c in nsd.columns
+        if any(c.lower().startswith(p.lower()) for p in col_prefixes)
+    ]
+    if not commodity_cols:
+        return 0.0
+
+    weight_map = dict(zip(
+        pd.to_numeric(tw["time"],   errors="coerce"),
+        pd.to_numeric(tw["weight"], errors="coerce"),
+    ))
+    weights = pd.to_numeric(nsd["time"], errors="coerce").map(weight_map).fillna(0.0)
+
+    total = 0.0
+    for col in commodity_cols:
+        vals = pd.to_numeric(nsd[col], errors="coerce").fillna(0.0)
+        total += (vals * weights).sum()
+
+    return float(total)
 
 
 # ---------------------------------------------------------------------
