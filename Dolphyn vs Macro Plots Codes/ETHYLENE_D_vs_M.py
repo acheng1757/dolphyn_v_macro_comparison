@@ -26,13 +26,11 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    "23": f'ethylene_only_test/{dolphyn_results_folder}/Results_Ethylene',
-    "25": f'all_demand_test/{dolphyn_results_folder}/Results_Ethylene',
+    "1": f'all_demand_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 macro_scenario_paths = {
-    "23": f"6_9_168_restart/results_023/results",
-    "25": f"6_9_168_restart/results_025/results"
+    "1": f"6_15_168_restart_all_demand/results_001/results",
 }
 
 # Ethylene flows are already in tonnes — no conversion needed for either model.
@@ -402,7 +400,7 @@ ETHYLENE_CATEGORIES = [
             r"_F(-|_)NGin_RETROFIT_ethylene",
         ]),
         ("Existing TSC:H2", [
-            r"Existing_F(-|_)NGin(-|_)H2out_ethylene",
+            r"Existing_.*F(-|_)NGin(-|_)H2out_ethylene",
         ]),
         ("TSC:H2", [
             r"_F(-|_)NGin(-|_)H2out_ethylene",
@@ -644,10 +642,10 @@ ax.set_title("Ethylene Balance (t/yr)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
-ax.axvline(x=existing_cracker_cap, color="red", linewidth=1.5, linestyle="--",
-           label="Total Existing Capacity")
-ax.axvline(x=0.8 * existing_cracker_cap, color="red", linewidth=1, linestyle=":",
-           label="80% Existing Capacity")
+#ax.axvline(x=existing_cracker_cap, color="red", linewidth=1.5, linestyle="--",
+#           label="Total Existing Capacity")
+#ax.axvline(x=0.8 * existing_cracker_cap, color="red", linewidth=1, linestyle=":",
+#           label="80% Existing Capacity")
 
 # Scenario labels to the left of each D/M pair
 for i, scen in enumerate(scenario_names):
@@ -672,9 +670,9 @@ custom_labels  = [label_map[col]       for col in desired_order if col in label_
 if "Total Existing Capacity" in label_to_handle:
     custom_handles.append(label_to_handle["Total Existing Capacity"])
     custom_labels.append("Total Existing Capacity")
-if "80% Existing Capacity" in label_to_handle:
-    custom_handles.append(label_to_handle["80% Existing Capacity"])
-    custom_labels.append("80% Existing Capacity")
+##if "80% Existing Capacity" in label_to_handle:
+ #   custom_handles.append(label_to_handle["80% Existing Capacity"])
+ #   custom_labels.append("80% Existing Capacity")
 
 ax.legend(
     custom_handles,
@@ -728,23 +726,23 @@ fig_plotly.update_layout(
         dict(type='line', x0=0, x1=0, y0=-0.5,
              y1=len(plot_df) - 0.5, yref='y',
              line=dict(color='black', width=1, dash='dash')),
-        dict(type='line', x0=existing_cracker_cap, x1=existing_cracker_cap,
-             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
-             line=dict(color='red', width=1.5, dash='dash')),
-        dict(type='line', x0=0.8 * existing_cracker_cap, x1=0.8 * existing_cracker_cap,
-             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
-             line=dict(color='red', width=1, dash='dot')),
+        #dict(type='line', x0=existing_cracker_cap, x1=existing_cracker_cap,
+        #     y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+        #     line=dict(color='red', width=1.5, dash='dash')),
+        #dict(type='line', x0=0.8 * existing_cracker_cap, x1=0.8 * existing_cracker_cap,
+        #     y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+        #     line=dict(color='red', width=1, dash='dot')),
     ],
-    annotations=[
-        dict(x=existing_cracker_cap, y=len(plot_df) - 0.5,
-             xref='x', yref='y', yanchor='bottom',
-             text='Total Existing Capacity', showarrow=False,
-             font=dict(color='red', size=11)),
-        dict(x=0.8 * existing_cracker_cap, y=len(plot_df) - 0.5,
-             xref='x', yref='y', yanchor='bottom',
-             text='80% Existing Capacity', showarrow=False,
-             font=dict(color='red', size=11)),
-    ],
+    #annotations=[
+    #    dict(x=existing_cracker_cap, y=len(plot_df) - 0.5,
+    #         xref='x', yref='y', yanchor='bottom',
+    #         text='Total Existing Capacity', showarrow=False,
+    #         font=dict(color='red', size=11)),
+    #    dict(x=0.8 * existing_cracker_cap, y=len(plot_df) - 0.5,
+    #         xref='x', yref='y', yanchor='bottom',
+    #         text='80% Existing Capacity', showarrow=False,
+    #         font=dict(color='red', size=11)),
+    #],
     height=max(400, 80 * len(plot_df)),
 )
 

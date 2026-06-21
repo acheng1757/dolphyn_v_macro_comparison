@@ -21,12 +21,11 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
+    "1": f'all_demand_test/{dolphyn_results_folder}',
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
-    scenario_names[1]: f"try_again_5_31_1848/results_001/results",
+    "1": f"6_15_168_restart_all_demand/results_001/results",
 }
 
 _scen_folder = dolphyn_scenario_paths[scenario_names[0]]

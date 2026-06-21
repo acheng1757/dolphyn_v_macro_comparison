@@ -24,11 +24,11 @@ mwh_h2_p_t_h2 = 39.39
 mwh_h2_p_tonne_h2 = 39.39
 
 dolphyn_scenario_paths = {
-    "1": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
+    "1": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test/",
 }
 
 macro_scenario_paths = {
-    "1": f"6_9_168_restart/results_006/results"
+    "1": f"6_15_168_restart_all_demand/results_001/results",
 }
 
 # ---------------------------------------------------------------------

@@ -339,10 +339,6 @@ macro_combined_data = (
 print("\nMACRO ethylene balance by scenario (tonnes):")
 print(macro_combined_data)
 
-# Existing steam cracker capacity: MWh-ethane/hr → t-ethylene/yr
-_t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
-_mwh_ethane_p_t_ethane = 13.19      # MWh-ethane/t-ethane (LHV)
-
 _crackers_json_path = os.path.join(
     macro_base_dir,
     macro_input_paths[scenario_names[0]],
@@ -357,6 +353,14 @@ _total_cap_mwh_per_hr = sum(
     for asset in _crackers["steamcracker_existing"]
     for inst in asset["instance_data"]
 )
+
+# Existing steam cracker capacity: MWh-ethane/hr → t-ethylene/yr
+_t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
+_mwh_ethane_p_t_ethane = 14.41666667      # MWh-ethane/t-ethane (LHV)
+
+print(f"_total_cap_mwh_per_hr: {_total_cap_mwh_per_hr}")
+print(f"_mwh_ethane_p_t_ethane: {_mwh_ethane_p_t_ethane}")
+print(f"_t_ethane_p_t_ethylene: {_t_ethane_p_t_ethylene}")
 
 # MWh-ethane/hr ÷ (MWh/t-ethane) ÷ (t-ethane/t-ethylene) × 8760 hr/yr → t-ethylene/yr
 existing_cracker_cap = (
@@ -416,7 +420,7 @@ ax.tick_params(axis="x", labelsize=14)
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
 ax.axvline(x=existing_cracker_cap, color="red", linewidth=1.5, linestyle="--",
            label="Total Existing Capacity")
-ax.axvline(x=0.8 * existing_cracker_cap, color="red", linewidth=1, linestyle=":",
+ax.axvline(x=0.8 * existing_cracker_cap, color="red", linewidth=1, linestyle=":",#
            label="80% Existing Capacity")
 ax.invert_yaxis()
 

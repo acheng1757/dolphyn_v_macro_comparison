@@ -2,27 +2,33 @@ import os
 import re
 import pandas as pd
 
-# ---------------------------------------------------------------------
-# User inputs
-# ---------------------------------------------------------------------
-
 macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 dolphyn_results_folder = "Results_1"
 
 # Only edit this list: (label, results_path_relative_to_macro_base_dir, system_folder)
+#_scenarios = [
+#    ("1", "intuition_test/2_ethanol_ccs_lf/results_001/results", "system"),
+#    ("2", "intuition_test/2_ethanol_ccs_lf/results_002/results", "system"),
+#    ("5", "intuition_test/2_ethanol_ccs_lf/results_005/results", "system"),
+#    ("7", "intuition_test/2_ethanol_ccs_lf/results_007/results", "system"),
+#]
+
 _scenarios = [
-    ("1", "intuition_test/2_ethanol_ccs_lf/results_001/results", "system"),
-    ("2", "intuition_test/2_ethanol_ccs_lf/results_002/results", "system"),
-    ("5", "intuition_test/2_ethanol_ccs_lf/results_005/results", "system"),
-    ("7", "intuition_test/2_ethanol_ccs_lf/results_007/results", "system"),
+    ("1", "6_20_test_plots/results_001/results", "system_all"),
+    ("2", "6_20_test_plots/results_002/results", "system_all"),
+    ("3", "6_20_test_plots/results_003/results", "system"),
+    ("4", "6_20_test_plots/results_004/results", "system"),
+    ("5", "6_15_168_restart/results_102/results", "system_1848")
 ]
 
-#_scenarios = [
-#    ("23", "6_9_168_restart/results_023/results", "system"),
-#    ("25", "6_9_168_restart/results_025/results", "system"),
-#    ("26", "6_9_168_restart/results_026/results", "system"),
-#
+carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios
+    "gasoline" : 0.243968185,
+    "jetfuel" : 0.246356685,
+    "diesel" : 0.249427613,
+    "naturalgas" : 0.1828908353,
+    "ethanol" : 0.2214113205, #t-CO2/MWh-ethanol (calculated)
+}
 
 scenario_names          = [label  for label, _,    _   in _scenarios]
 scenario_folders        = [path   for _,     path, _   in _scenarios]
@@ -36,10 +42,6 @@ macro_input_paths       = {
 
 chunk_size = 50_000
 annual_flow_tolerance = 1e-8
-
-# ---------------------------------------------------------------------
-# Sector/category definitions for tagging annual flows
-# ---------------------------------------------------------------------
 
 sector_definitions = {
     "Power": {
@@ -297,7 +299,7 @@ sector_definitions = {
             r"_F(-|_)NGin_RETROFIT_ethylene",
         ]),
         ("Existing TSC:H2", [
-            r"Existing_F(-|_)NGin(-|_)H2out_ethylene",
+            r"Existing_.*F(-|_)NGin(-|_)H2out_ethylene",
         ]),
         ("TSC:H2", [
             r"_F(-|_)NGin(-|_)H2out_ethylene",
@@ -1327,6 +1329,22 @@ def add_balance_labels(df):
         edge_lower.str.contains("ethanol_consumption_edge", na=False)
         )
     df.loc[is_ethylene_ethanol_consumption, "Balance"] = "Ethanol"
+
+    is_ethylene_sector_ethylene = (
+        is_ethylene &
+        (
+            edge_lower.str.contains("global_ethylene_use_fuel_demand_edge", na=False) # positive value
+        )
+    )
+    df.loc[is_ethylene_sector_ethylene, "Balance"] = "Ethylene"
+
+    is_ethylene_sector_co2 = (
+        is_ethylene &
+        (
+            edge_lower.str.contains("global_ethylene_use_co2_edge", na=False)
+        )
+    )
+    df.loc[is_ethylene_sector_co2, "Balance"] = "CO2"
 
 # -----------------------------------------------------------------
 # Ethanol sector

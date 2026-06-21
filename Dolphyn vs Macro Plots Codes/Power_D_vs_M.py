@@ -12,7 +12,7 @@ plt.rcParams["font.family"] = "Arial"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
-    dolphyn_base_dir, macro_base_dir, macro_results_folder,
+    dolphyn_base_dir, macro_base_dir,
     dolphyn_results_folder, scenario_names,
 )
 
@@ -20,11 +20,11 @@ MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"all_demand_test/{dolphyn_results_folder}",
+    "17": f'all_demand_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 macro_scenario_paths = {
-    scenario_names[0]: f"clean_slate_5_25/results_1848h_all/results",
+    "17": f"6_15_168_restart_all/results_001/results",
 }
 
 # ---------------------------------------------------------------------

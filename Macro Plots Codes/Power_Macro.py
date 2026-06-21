@@ -75,11 +75,8 @@ def map_macro_power_category(row):
 
         return "Synthetic FT"
 
-    if sector == "Transmission":
-        edge = str(row.get("Edge", "")).lower()
-        if "ethanol_to_" in edge:
-            return "Ethanol Upgrading"
-        return "Transmission"
+    #if sector == "Transmission":
+    #    return "Transmission"
 
     return None
 
@@ -90,7 +87,7 @@ def map_macro_power_category(row):
 desired_order = [
     "Demand",
     "Non-Served Demand",
-    "Transmission",
+    #"Transmission",
     "H2 Production",
     "Sorbent DAC Input",
     "Bioenergy Input",
@@ -225,13 +222,13 @@ category_colors = {
     "H2 Production": "lightgreen",
     "Demand": "bisque",
     "Non-Served Demand": "red",
-    "Transmission": "rosybrown",
+    #"Transmission": "rosybrown",
 }
 
 category_names = {
     "Demand": "Demand",
     "Non-Served Demand": "Non-Served Demand",
-    "Transmission": "Transmission",
+    #"Transmission": "Transmission",
     "H2 Production": "Electrolyzer",
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",

@@ -6,7 +6,7 @@ to capture each figure as an image before assembling the grid.
 
 import html as _html
 import importlib.util
-import os
+import os 
 import sys
 import webbrowser
 from io import BytesIO, StringIO
@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.io import to_html as _pio_to_html
+from plotly.subplots import make_subplots
 
 # -------------------------------------------------------------------------
 # Configuration
@@ -30,6 +31,7 @@ SCRIPT_FILES = [
     "CO2_Capture_Macro.py",
     "CO2_Emission_Macro.py",
     "ETHYLENE_Macro.py",
+    "ETHYLENE_Macro_byZone.py",
     "ETHANOL_Macro.py",
 ]
 
@@ -66,7 +68,12 @@ for script_name in SCRIPT_FILES:
         print(f"Warning: {script_name} not found, skipping.")
         continue
 
-    label = script_name.replace("_Macro.py", "").replace("_", " ")
+    label = (
+        script_name.replace(".py", "")
+        .replace("_Macro", "")
+        .replace("byZone", "by Zone")
+        .replace("_", " ")
+    )
     print(f"Running {script_name} ...")
 
     spec = importlib.util.spec_from_file_location(
@@ -85,6 +92,10 @@ for script_name in SCRIPT_FILES:
         if hasattr(module, 'fig_plotly'):
             plotly_figs.append(module.fig_plotly)
             plotly_titles.append(label)
+        if hasattr(module, 'extra_plotly_figs'):
+            for _xfig, _xtitle in zip(module.extra_plotly_figs, module.extra_plotly_titles):
+                plotly_figs.append(_xfig)
+                plotly_titles.append(f"{label} – {_xtitle}")
     except Exception as exc:
         sys.stdout = sys.__stdout__
         print(f"  ERROR in {script_name}: {exc}")
@@ -225,11 +236,15 @@ if _s1 is not None:
     # ── 3. Balance duals: average across zones and time ────────────────
     # Values ≥ 1e6 are big-M penalty prices and are excluded from the mean.
     _PENALTY = 1e6
+    _ZONE_LIST = ["CA", "NW", "SW", "TX", "NCEN", "CEN", "SE", "MIDAT", "NE"]
     _dual_by_scen = {}
+    _zonal_dual_by_scen = {}
     for _scen in _scen_names:
         _p = os.path.join(_base, _scen_paths.get(_scen, ''), 'balance_duals.csv')
         try:
             _df = pd.read_csv(_p)
+
+            # Aggregate view: average each commodity across all its locations.
             _comm_groups = {}
             for _col in _df.columns:
                 _comm_groups.setdefault(_col.rsplit('_', 1)[0], []).append(_col)
@@ -238,9 +253,27 @@ if _s1 is not None:
                 _vals = _df[_cols].values.flatten().astype(float)
                 _vals = _vals[_vals < _PENALTY]
                 _dual_by_scen[_scen][_comm] = float(_vals.mean()) if len(_vals) else None
+
+            # Zonal view: per-zone mean for commodities with one column per zone.
+            _zone_comm_groups = {}
+            for _col in _df.columns:
+                _prefix, _, _suffix = _col.rpartition('_')
+                if _suffix in _ZONE_LIST:
+                    _zone_comm_groups.setdefault(_prefix, {})[_suffix] = _col
+            _zonal_dual_by_scen[_scen] = {}
+            for _comm, _zone_cols in _zone_comm_groups.items():
+                if set(_zone_cols) != set(_ZONE_LIST):
+                    continue  # skip commodities with incomplete zone coverage
+                _zone_means = {}
+                for _zone, _col in _zone_cols.items():
+                    _vals = _df[_col].values.astype(float)
+                    _vals = _vals[_vals < _PENALTY]
+                    _zone_means[_zone] = float(_vals.mean()) if len(_vals) else None
+                _zonal_dual_by_scen[_scen][_comm] = _zone_means
         except Exception as _e:
             print(f"  Warning: balance_duals.csv missing for scenario {_scen}: {_e}")
             _dual_by_scen[_scen] = {}
+            _zonal_dual_by_scen[_scen] = {}
 
     _all_comms = sorted({c for d in _dual_by_scen.values() for c in d})
     if _all_comms:
@@ -265,6 +298,54 @@ if _s1 is not None:
         )
         plotly_figs.append(_fig_duals)
         plotly_titles.append('Commodity Duals')
+
+    # ── 4. Commodity duals by zone: one subplot grid per scenario ───────
+    _zonal_commodities = sorted({
+        _comm
+        for _scen_duals in _zonal_dual_by_scen.values()
+        for _comm in _scen_duals
+    })
+
+    if _zonal_commodities:
+        _grid_cols = 4
+        _grid_rows = (len(_zonal_commodities) + _grid_cols - 1) // _grid_cols
+
+        for _scen in _scen_names:
+            _scen_duals = _zonal_dual_by_scen.get(_scen, {})
+            if not _scen_duals:
+                continue
+
+            _fig_zonal = make_subplots(
+                rows=_grid_rows,
+                cols=_grid_cols,
+                subplot_titles=[c.replace('_', ' ').title() for c in _zonal_commodities],
+            )
+
+            for _i, _comm in enumerate(_zonal_commodities):
+                _row = _i // _grid_cols + 1
+                _col_pos = _i % _grid_cols + 1
+                _zone_means = _scen_duals.get(_comm, {})
+                _fig_zonal.add_trace(
+                    go.Bar(
+                        x=_ZONE_LIST,
+                        y=[_zone_means.get(_z) for _z in _ZONE_LIST],
+                        marker_color='teal',
+                        showlegend=False,
+                        hovertemplate='%{x}: %{y:.2f}<extra>' + _comm + '</extra>',
+                    ),
+                    row=_row,
+                    col=_col_pos,
+                )
+
+            _fig_zonal.update_xaxes(tickangle=45, tickfont_size=9)
+            _fig_zonal.update_yaxes(tickfont_size=9)
+            _fig_zonal.update_layout(
+                title=f'Balance Duals by Zone — Scenario {_scen} (penalty values ≥ 1e6 excluded)',
+                height=max(700, 260 * _grid_rows),
+                showlegend=False,
+            )
+            plotly_figs.append(_fig_zonal)
+            plotly_titles.append(f'Commodity Duals by Zone — Scenario {_scen}')
 else:
     print("Warning: Step_1 module not in sys.modules; skipping cost/dual charts.")
 

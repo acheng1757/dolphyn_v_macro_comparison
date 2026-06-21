@@ -44,7 +44,7 @@ desired_order = [
     "Ethanol to Gasoline",
     "Ethanol to Diesel",
     "Ethanol to JetFuel",
-    "Ethanol to Diesel JetFuel",
+    "Ethanol to Gasoline Diesel",
 ]
 
 category_colors = {
@@ -60,7 +60,7 @@ category_colors = {
     "Ethanol to Gasoline":       "royalblue",
     "Ethanol to Diesel":         "forestgreen",
     "Ethanol to JetFuel":        "chocolate",
-    "Ethanol to Diesel JetFuel": "limegreen",
+    "Ethanol to Gasoline Diesel": "limegreen",
     "Ethanol Demand":           "bisque",
     "Non-Served Demand":        "red",
 }
@@ -78,7 +78,7 @@ label_map = {
     "Ethanol to Gasoline":       "Eth. Upgrading (Gasoline)",
     "Ethanol to Diesel":         "Eth. Upgrading (Diesel)",
     "Ethanol to JetFuel":        "Eth. Upgrading (JetFuel)",
-    "Ethanol to Diesel JetFuel": "Eth. Upgrading (Diesel+Jet)",
+    "Ethanol to Gasoline Diesel": "Eth. Upgrading (Gasoline+Diesel)",
     "Ethanol Demand":            "Ethanol Demand",
     "Non-Served Demand":         "Non-Served Demand",
 }
@@ -180,6 +180,7 @@ else:
 
 _ETHANOL_UPGRADING_ASSETS = [
     ("Ethanol to Gasoline",       "_Ethanol_to_Gasoline_",       None),
+    ("Ethanol to Gasoline Diesel", "_Ethanol_to_Gasoline_Diesel_", None),
     ("Ethanol to Diesel JetFuel", "_Ethanol_to_Diesel_JetFuel_", None),
     ("Ethanol to Diesel",         "_Ethanol_to_Diesel_",         "_Ethanol_to_Diesel_JetFuel_"),
     ("Ethanol to JetFuel",        "_Ethanol_to_JetFuel_",        None),

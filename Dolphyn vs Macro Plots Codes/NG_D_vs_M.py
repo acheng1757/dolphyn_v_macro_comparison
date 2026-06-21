@@ -21,12 +21,13 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 )
 
 dolphyn_scenario_paths = {
-    scenario_names[0]: f"ethylene_only_test/{dolphyn_results_folder}",
+    "1": f'all_demand_test/{dolphyn_results_folder}',
 }
 
 macro_scenario_paths = {
-    "1": f"6_9_168_restart/results_006/results"
+    "1": f"6_15_168_restart_all_demand/results_001/results",
 }
+
 # Dolphyn NG_Balance values are treated as MMBtu.
 MMBTU_TO_EJ = 0.293071 * 3.6e-9
 
