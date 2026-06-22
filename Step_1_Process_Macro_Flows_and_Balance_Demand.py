@@ -15,11 +15,12 @@ dolphyn_results_folder = "Results_1"
 #]
 
 _scenarios = [
-    ("1", "6_20_test_plots/results_001/results", "system_all"),
-    ("2", "6_20_test_plots/results_002/results", "system_all"),
-    ("3", "6_20_test_plots/results_003/results", "system"),
-    ("4", "6_20_test_plots/results_004/results", "system"),
-    ("5", "6_15_168_restart/results_102/results", "system_1848")
+    ("1", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_001/results", "system_1"),
+    ("2", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_002/results", "system_1"),
+    ("3", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_003/results", "system_1a"),
+    ("4", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_004/results", "system_1a"),
+    ("5", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_005/results", "system_1a"),
+    ("6", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_006/results", "system")
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios
@@ -27,7 +28,7 @@ carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios
     "jetfuel" : 0.246356685,
     "diesel" : 0.249427613,
     "naturalgas" : 0.1828908353,
-    "ethanol" : 0.2214113205, #t-CO2/MWh-ethanol (calculated)
+    "ethanol" : 0.230374912051, #t-CO2/MWh-ethanol (calculated)
 }
 
 scenario_names          = [label  for label, _,    _   in _scenarios]
@@ -379,20 +380,24 @@ sector_definitions = {
 },
 "Ethanol": {
     "categories": [
-        ("DryMill_CCS_60_RETROFIT", [       # must come before DryMill_CCS_60
+        ("DryMill_CCS_Fermentation_RETROFIT", [       # must come before DryMill_CCS_60
             r"_DryMill_CCS_60_RETROFIT",
+            r"_DryMill_CCS_Fermentation_RETROFIT",
         ]),
-        ("DryMill_CCS_90_RETROFIT", [       # must come before DryMill_CCS_90
+        ("DryMill_CCS_Fermentation_Exhaust_RETROFIT", [       # must come before DryMill_CCS_90
             r"_DryMill_CCS_90_RETROFIT",
+            r"_DryMill_CCS_Fermentation_Exhaust_RETROFIT",
         ]),
         ("DryMill_Existing_Non_CCS", [
             r"_DryMill_Existing_Non_CCS",
         ]),
-        ("DryMill_CCS_60", [               # safe now — RETROFIT already caught above
+        ("DryMill_CCS_Fermentation", [               # safe now — RETROFIT already caught above
             r"_DryMill_CCS_60",
+            r"_DryMill_CCS_Fermentation",
         ]),
-        ("DryMill_CCS_90", [               # add this if you have it
+        ("DryMill_CCS_Fermentation_Exhaust", [               # add this if you have it
             r"_DryMill_CCS_90",
+            r"_DryMill_CCS_Fermentation_Exhaust",
         ]),
         ("Bio_Ethanol_CCS_20", [           # must come before plain Bio_Ethanol_
             r"_Bio_Ethanol_CCS_20",
@@ -1126,7 +1131,10 @@ def add_balance_labels(df):
         (
             edge_lower.str.contains("global_gasoline_use_fuel_edge", na=False) |
             edge_lower.str.contains("global_fossil_petroleum_refinery_gasoline_edge", na=False) |
-            edge_lower.str.contains("global_gasoline_fossil_upstream", na=False)
+            edge_lower.str.contains("global_gasoline_fossil_upstream", na=False) |
+
+            edge_lower.str.contains("global_gasoline_1a_use_fuel_edge", na=False) |
+            edge_lower.str.contains("global_gasoline_1b_use_fuel_edge", na=False)
         )
     )
     df.loc[is_lf_gasoline, "Balance"] = "Gasoline"
@@ -1136,7 +1144,9 @@ def add_balance_labels(df):
         (
             edge_lower.str.contains("global_jetfuel_use_fuel_edge", na=False) |
             edge_lower.str.contains("global_fossil_petroleum_refinery_jetfuel_edge", na=False) |
-            edge_lower.str.contains("global_jetfuel_fossil_upstream", na=False)
+            edge_lower.str.contains("global_jetfuel_fossil_upstream", na=False) |
+
+            edge_lower.str.contains("global_jetfuel_1_use_fuel_edge", na=False)
         )
     )
     df.loc[is_lf_jetfuel, "Balance"] = "Jetfuel"
@@ -1146,7 +1156,10 @@ def add_balance_labels(df):
         (
             edge_lower.str.contains("global_diesel_use_fuel_edge", na=False) |
             edge_lower.str.contains("global_fossil_petroleum_refinery_diesel_edge", na=False) |
-            edge_lower.str.contains("global_diesel_fossil_upstream", na=False)
+            edge_lower.str.contains("global_diesel_fossil_upstream", na=False) |
+
+            edge_lower.str.contains("global_diesel_1a_fossil_upstream", na=False) |
+            edge_lower.str.contains("global_diesel_1b_fossil_upstream", na=False)
         )
     )
     df.loc[is_lf_diesel, "Balance"] = "Diesel"
@@ -1155,8 +1168,14 @@ def add_balance_labels(df):
         is_lf_sector &
         (
             edge_lower.str.contains("global_gasoline_use_co2_edge", na=False) |
+            edge_lower.str.contains("global_gasoline_1a_use_co2_edge", na=False) |
+            edge_lower.str.contains("global_gasoline_1b_use_co2_edge", na=False) |
+
             edge_lower.str.contains("global_jetfuel_use_co2_edge", na=False) |
-            edge_lower.str.contains("global_diesel_use_co2_edge", na=False)
+            edge_lower.str.contains("global_jetfuel_1_use_co2_edge", na=False) |
+            edge_lower.str.contains("global_diesel_use_co2_edge", na=False) |
+            edge_lower.str.contains("global_diesel_1a_use_co2_edge", na=False) |
+            edge_lower.str.contains("global_diesel_1b_use_co2_edge", na=False)
         )
     )
     df.loc[is_lf_co2, "Balance"] = "CO2"

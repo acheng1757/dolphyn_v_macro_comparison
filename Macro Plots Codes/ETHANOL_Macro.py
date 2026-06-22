@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
@@ -12,7 +13,7 @@ import sys
 # Global settings
 # ---------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, load_annual_nsd
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_scenario_paths, macro_input_paths, load_annual_nsd
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -33,10 +34,10 @@ desired_order = [
     "Ethanol Demand",
     "Non-Served Demand",
     "DryMill_Existing_Non_CCS",
-    "DryMill_CCS_60_RETROFIT",
-    "DryMill_CCS_90_RETROFIT",
-    "DryMill_CCS_60",
-    "DryMill_CCS_90",
+    "DryMill_CCS_Fermentation_RETROFIT",
+    "DryMill_CCS_Fermentation_Exhaust_RETROFIT",
+    "DryMill_CCS_Fermentation",
+    "DryMill_CCS_Fermentation_Exhaust",
     "Bio_Ethanol_CCS_20",
     "Bio_Ethanol_CCS_86",
     "Bio_Ethanol_Non_CCS",
@@ -52,10 +53,10 @@ category_colors = {
     "Bio_Ethanol_CCS_20":       "#d4a017",
     "Bio_Ethanol_CCS_86":       "#8b6500",
     "DryMill_Existing_Non_CCS": "#f4a86a",
-    "DryMill_CCS_60_RETROFIT":  "#c45e20",
-    "DryMill_CCS_90_RETROFIT":  "#8b3a0f",
-    "DryMill_CCS_60":           "#e8630a",
-    "DryMill_CCS_90":           "#7a2e0e",
+    "DryMill_CCS_Fermentation_RETROFIT":  "#e8630a",   # same as DryMill_CCS_Fermentation
+    "DryMill_CCS_Fermentation_Exhaust_RETROFIT":  "#7a2e0e",   # same as DryMill_CCS_Fermentation_Exhaust
+    "DryMill_CCS_Fermentation":           "#e8630a",
+    "DryMill_CCS_Fermentation_Exhaust":           "#7a2e0e",
     "Ethylene":                 "#e8630a",
     "Ethanol to Gasoline":       "royalblue",
     "Ethanol to Diesel":         "forestgreen",
@@ -65,12 +66,31 @@ category_colors = {
     "Non-Served Demand":        "red",
 }
 
+# Pattern encodes build type: "" = new build, "//" = retrofit, ".." = existing
+category_hatch = {
+    "Bio_Ethanol_Non_CCS":      "",
+    "Bio_Ethanol_CCS_20":       "",
+    "Bio_Ethanol_CCS_86":       "",
+    "DryMill_Existing_Non_CCS": "..",
+    "DryMill_CCS_Fermentation_RETROFIT":         "//",
+    "DryMill_CCS_Fermentation_Exhaust_RETROFIT": "//",
+    "DryMill_CCS_Fermentation":                  "",
+    "DryMill_CCS_Fermentation_Exhaust":          "",
+    "Ethylene":                  "",
+    "Ethanol to Gasoline":       "",
+    "Ethanol to Diesel":         "",
+    "Ethanol to JetFuel":        "",
+    "Ethanol to Gasoline Diesel": "",
+    "Ethanol Demand":            "",
+    "Non-Served Demand":         "",
+}
+
 label_map = {
     "DryMill_Existing_Non_CCS":  "DryMill_Existing_Non_CCS",
-    "DryMill_CCS_60_RETROFIT":   "DryMill_CCS_60_RETROFIT",
-    "DryMill_CCS_90_RETROFIT":   "DryMill_CCS_90_RETROFIT",
-    "DryMill_CCS_60":            "DryMill_CCS_60",
-    "DryMill_CCS_90":            "DryMill_CCS_90",
+    "DryMill_CCS_Fermentation_RETROFIT":   "DryMill_CCS_Fermentation_RETROFIT",
+    "DryMill_CCS_Fermentation_Exhaust_RETROFIT":   "DryMill_CCS_Fermentation_Exhaust_RETROFIT",
+    "DryMill_CCS_Fermentation":            "DryMill_CCS_Fermentation",
+    "DryMill_CCS_Fermentation_Exhaust":            "DryMill_CCS_Fermentation_Exhaust",
     "Bio_Ethanol_CCS_20":        "Bio_Ethanol_CCS_20",
     "Bio_Ethanol_CCS_86":        "Bio_Ethanol_CCS_86",
     "Bio_Ethanol_Non_CCS":       "Bio_Ethanol_Non_CCS",
@@ -246,6 +266,37 @@ macro_combined_data = (
 print("\nMACRO ethanol balance by scenario (EJ):")
 print(macro_combined_data)
 
+_drymill_json_path = os.path.join(
+    macro_base_dir,
+    macro_input_paths[scenario_names[0]],
+    "assets",
+    "existing_drymill.json",
+)
+
+existing_drymill_cap = None
+if os.path.exists(_drymill_json_path):
+    with open(_drymill_json_path) as _f:
+        _drymill = json.load(_f)
+
+    _total_biomass_cap_t_per_hr = sum(
+        inst["edges"]["biomass_consumption_edge"]["existing_capacity"]
+        for asset in _drymill["drymill"]
+        for inst in asset["instance_data"]
+    )
+
+    # MWh-ethanol per t-biomass — same conversion factor for every dry mill asset
+    _mwh_ethanol_p_t_biomass = (
+        _drymill["drymill"][0]["instance_data"][0]["transforms"]["ethanol_production"]
+    )
+
+    # t-biomass/hr × MWh-ethanol/t-biomass × 8760 hr/yr × EJ/MWh → EJ/yr
+    existing_drymill_cap = (
+        _total_biomass_cap_t_per_hr * _mwh_ethanol_p_t_biomass * 8760 * MWH_TO_EJ
+    )
+else:
+    print(f"Warning: existing DryMill capacity file not found: {_drymill_json_path}")
+
+
 # ---------------------------------------------------------------------
 # Balance check: sum of positives vs negatives per scenario
 # ---------------------------------------------------------------------
@@ -283,20 +334,37 @@ plot_df.plot(
     color=[category_colors[col] for col in active_cols],
 )
 
+for container, col in zip(ax.containers, active_cols):
+    hatch = category_hatch.get(col, "")
+    for patch in container.patches:
+        patch.set_hatch(hatch)
+        patch.set_edgecolor("white" if hatch else "none")
+
 ax.set_yticklabels(scenario_names, fontsize=14)
 ax.set_ylabel("")
 ax.set_title("Ethanol Balance (EJ)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
+if existing_drymill_cap is not None:
+    ax.axvline(x=existing_drymill_cap, color="red", linewidth=1.5, linestyle="--",
+               label="Total Existing Capacity")
+    ax.axvline(x=0.8 * existing_drymill_cap, color="red", linewidth=1, linestyle=":",
+               label="80% Existing Capacity")
 ax.invert_yaxis()
 
 handles, labels = ax.get_legend_handles_labels()
 label_to_handle = dict(zip(labels, handles))
 
-# Only include active_cols that actually got plotted
+# Only include active_cols that actually got plotted, plus the capacity lines
 custom_handles = [label_to_handle[col] for col in active_cols if col in label_to_handle]
 custom_labels  = [label_map[col]       for col in active_cols if col in label_to_handle]
+if "Total Existing Capacity" in label_to_handle:
+    custom_handles.append(label_to_handle["Total Existing Capacity"])
+    custom_labels.append("Total Existing Capacity")
+if "80% Existing Capacity" in label_to_handle:
+    custom_handles.append(label_to_handle["80% Existing Capacity"])
+    custom_labels.append("80% Existing Capacity")
 
 ax.legend(
     custom_handles,
@@ -315,16 +383,52 @@ plt.show()
 # Interactive Plotly version — hover to see individual category values
 # ---------------------------------------------------------------------------
 
+_plotly_hatch_map = {"//": "/", "..": "."}
+
 fig_plotly = go.Figure()
 for col in active_cols:
+    display_name = label_map.get(col, col)
+    color = category_colors.get(col, '#333333')
+    pattern_shape = _plotly_hatch_map.get(category_hatch.get(col, ""), "")
     fig_plotly.add_trace(go.Bar(
-        name=label_map.get(col, col),
+        name=display_name,
         y=scenario_names,
         x=plot_df[col].tolist(),
         orientation='h',
-        marker_color=category_colors.get(col, '#333333'),
+        marker_color=color,
+        marker_pattern_shape=pattern_shape,
+        marker_pattern_fgcolor="white",
+        marker_pattern_fillmode="overlay",
         hovertemplate='%{fullData.name}: %{x:.4f} EJ<extra></extra>',
     ))
+
+_capacity_shapes = [
+    dict(type='line', x0=0, x1=0, y0=-0.5,
+         y1=len(plot_df) - 0.5, yref='y',
+         line=dict(color='black', width=1, dash='dash')),
+]
+_capacity_annotations = []
+if existing_drymill_cap is not None:
+    _capacity_shapes.append(
+        dict(type='line', x0=existing_drymill_cap, x1=existing_drymill_cap,
+             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+             line=dict(color='red', width=1.5, dash='dash'))
+    )
+    _capacity_shapes.append(
+        dict(type='line', x0=0.8 * existing_drymill_cap, x1=0.8 * existing_drymill_cap,
+             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+             line=dict(color='red', width=1, dash='dot'))
+    )
+    _capacity_annotations = [
+        dict(x=existing_drymill_cap, y=len(plot_df) - 0.5,
+             xref='x', yref='y', yanchor='bottom',
+             text='Total Existing Capacity', showarrow=False,
+             font=dict(color='red', size=11)),
+        dict(x=0.8 * existing_drymill_cap, y=len(plot_df) - 0.5,
+             xref='x', yref='y', yanchor='bottom',
+             text='80% Existing Capacity', showarrow=False,
+             font=dict(color='red', size=11)),
+    ]
 
 fig_plotly.update_layout(
     barmode='relative',
@@ -332,9 +436,8 @@ fig_plotly.update_layout(
     xaxis_title='EJ',
     yaxis=dict(autorange='reversed'),
     legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
-    shapes=[dict(type='line', x0=0, x1=0, y0=-0.5,
-                 y1=len(plot_df) - 0.5, yref='y',
-                 line=dict(color='black', width=1, dash='dash'))],
+    shapes=_capacity_shapes,
+    annotations=_capacity_annotations,
     height=max(400, 80 * len(plot_df)),
 )
 

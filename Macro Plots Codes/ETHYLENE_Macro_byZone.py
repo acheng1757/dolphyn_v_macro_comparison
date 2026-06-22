@@ -3,7 +3,6 @@
 
 import os
 import pandas as pd
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import webbrowser
@@ -17,8 +16,6 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenar
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
-
-plt.rcParams["font.family"] = "Arial"
 
 # ---------------------------------------------------------------------
 # Desired order, colors, and labels (same styling as ETHYLENE_Macro.py)
@@ -259,7 +256,7 @@ for scen_short, scen_path in macro_scenario_paths.items():
 
 
 # ---------------------------------------------------------------------
-# Plot: one panel per scenario, zones as the stacked horizontal bars
+# Determine plotted scenarios and active categories
 # ---------------------------------------------------------------------
 
 plotted_scenarios = [s for s in scenario_names if s in zone_tables_by_scenario]
@@ -273,60 +270,6 @@ active_cols = [
         for s in plotted_scenarios
     )
 ]
-
-fig, axes = plt.subplots(
-    len(plotted_scenarios), 1,
-    figsize=(6.5, 2.6 * len(plotted_scenarios)),
-    sharex=True,
-)
-if len(plotted_scenarios) == 1:
-    axes = [axes]
-
-for ax, scen in zip(axes, plotted_scenarios):
-    plot_df = zone_tables_by_scenario[scen][active_cols]
-
-    plot_df.plot(
-        kind="barh",
-        stacked=True,
-        width=0.72,
-        ax=ax,
-        legend=False,
-        color=[category_colors[col] for col in active_cols],
-    )
-
-    for container, col in zip(ax.containers, active_cols):
-        hatch = category_hatch.get(col, "")
-        for patch in container.patches:
-            patch.set_hatch(hatch)
-            patch.set_edgecolor("white" if hatch else "none")
-
-    ax.set_yticklabels(zone_list, fontsize=11)
-    ax.set_ylabel("")
-    ax.set_title(f"Scenario {scen}", fontsize=12, loc="left")
-    ax.tick_params(axis="x", labelsize=11)
-    ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
-    ax.invert_yaxis()
-
-axes[-1].set_xlabel("tonnes", fontsize=12)
-fig.suptitle("Ethylene Production by Zone (tonnes)", fontsize=15)
-
-handles, labels = axes[0].get_legend_handles_labels()
-label_to_handle = dict(zip(labels, handles))
-custom_handles = [label_to_handle[col] for col in active_cols if col in label_to_handle]
-custom_labels = [label_map[col] for col in active_cols if col in label_to_handle]
-
-fig.legend(
-    custom_handles,
-    custom_labels,
-    loc="upper center",
-    bbox_to_anchor=(0.5, 0.02),
-    ncol=3,
-    fontsize=10,
-    frameon=False,
-)
-
-plt.subplots_adjust(left=0.16, right=0.97, top=0.90, bottom=0.18, hspace=0.45)
-plt.show()
 
 # ---------------------------------------------------------------------------
 # Interactive Plotly version — one subplot per scenario, hover for details

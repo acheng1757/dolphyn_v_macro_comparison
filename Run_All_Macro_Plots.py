@@ -25,14 +25,19 @@ SCRIPTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Macro Pl
 
 SCRIPT_FILES = [
     "Power_Macro.py",
+    "Power_Macro_byZone.py",
     "H2_Macro.py",
+    "H2_Macro_byZone.py",
     "NG_Macro.py",
+    "NG_Macro_byZone.py",
     "LF_Macro.py",
+    "LF_Macro_byZone.py",
     "CO2_Capture_Macro.py",
     "CO2_Emission_Macro.py",
     "ETHYLENE_Macro.py",
     "ETHYLENE_Macro_byZone.py",
     "ETHANOL_Macro.py",
+    "ETHANOL_Macro_byZone.py",
 ]
 
 GRID_COLS = 4
