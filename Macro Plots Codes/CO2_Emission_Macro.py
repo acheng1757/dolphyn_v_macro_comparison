@@ -46,7 +46,10 @@ desired_order = [
     "Ethylene and processes",
     "Ethanol and processes",
     "Ethanol Combustion",
-    "Ethanol LF Combustion",
+    "Ethanol to Gasoline Combustion",
+    "Ethanol to Diesel Combustion",
+    "Ethanol to JetFuel Combustion",
+    "Ethanol to Multiproduct Combustion",
 ]
 
 category_colors = {
@@ -67,7 +70,10 @@ category_colors = {
     "Ethylene and processes": "#e8630a",
     "Ethanol and processes": "#d4a017",
     "Ethanol Combustion": "#f0cc6a",
-    "Ethanol LF Combustion": "#c8b040",
+    "Ethanol to Gasoline Combustion": "#c8b040",
+    "Ethanol to Diesel Combustion": "#c8b040",
+    "Ethanol to JetFuel Combustion": "#c8b040",
+    "Ethanol to Multiproduct Combustion": "#c8b040",
 }
 
 category_names = {
@@ -88,7 +94,10 @@ category_names = {
     "Ethylene and processes": "Ethylene",
     "Ethanol and processes": "Ethanol Process",
     "Ethanol Combustion": "Ethanol Combustion",
-    "Ethanol LF Combustion": "Ethanol LF Combustion",
+    "Ethanol to Gasoline Combustion": "Ethanol to Gasoline Combustion",
+    "Ethanol to Diesel Combustion": "Ethanol to Diesel Combustion",
+    "Ethanol to JetFuel Combustion": "Ethanol to JetFuel Combustion",
+    "Ethanol to Multiproduct Combustion": "Ethanol to Multiproduct Combustion",
 }
 
 
@@ -180,12 +189,45 @@ def map_macro_direct_co2_category(row):
     if (
         sector == "Liquid fuels"
         and (
-            "global_diesel_use" in edge_lower
-            or "global_gasoline_use" in edge_lower
-            or "global_jetfuel_use" in edge_lower
+            "global_diesel_use_co2" in edge_lower
+            or "global_gasoline_use_co2" in edge_lower
+            or "global_jetfuel_use_co2" in edge_lower
         )
     ):
         return None
+    
+    if (
+        sector == "Liquid fuels"
+        and (
+            "global_diesel_1a_use_co2" in edge_lower
+            or "global_gasoline_1a_use_co2" in edge_lower
+        )
+    ):
+        return "Ethanol to Multiproduct Combustion"
+    
+    if (
+        sector == "Liquid fuels"
+        and (
+            "global_diesel_1b_use_co2" in edge_lower
+        )
+    ):
+        return "Ethanol to Diesel Combustion"
+
+    if (
+        sector == "Liquid fuels"
+        and (
+            "global_gasoline_1b_use_co2" in edge_lower
+        )
+    ):
+        return "Ethanol to Gasoline Combustion"
+    
+    if (
+        sector == "Liquid fuels"
+        and (
+            "global_jetfuel_1_use_co2" in edge_lower
+        )
+    ):
+        return "Ethanol to JetFuel Combustion"
 
     # Ignore NG end-use CO2 rows.
     # These are reconstructed from annual_flows_balance_NG.csv.
@@ -235,9 +277,9 @@ def read_ethanol_emission_rate(json_path):
     """
     Read ethanol end-use emission rate from ethanol_end_use.json.
 
-    The file uses a GasolineEndUse (or similar) wrapper with the rate
-    nested under instance_data[*].transforms.emission_rate.  All
-    instances share the same rate, so the first non-None value is returned.
+    The file uses an EthanolEndUse (or similar) wrapper with the rate
+    directly on each instance_data[*].emission_rate.  All instances share
+    the same rate, so the first non-None value is returned.
     """
     with open(json_path, "r") as f:
         data = json.load(f)
@@ -245,7 +287,7 @@ def read_ethanol_emission_rate(json_path):
     for blocks in data.values():
         for block in blocks:
             for item in block.get("instance_data", []):
-                rate = item.get("transforms", {}).get("emission_rate")
+                rate = item.get("emission_rate")
                 if rate is not None:
                     return float(rate)
 
@@ -1057,6 +1099,8 @@ _COMBUSTION = [
     "Synthetic Fuels Combustion", "Synthetic NG End Use",
     "Bio NG End Use", "Ethylene NG End Use",
     "Biofuels Combustion", "Ethanol Combustion", "Ethanol LF Combustion",
+    "Ethanol to Gasoline Combustion", "Ethanol to Diesel Combustion",
+    "Ethanol to JetFuel Combustion", "Ethanol to Multiproduct Combustion"
 ]
 _PROCESS = [
     "Synthetic Fuels and processes", "Synthetic NG and processes",

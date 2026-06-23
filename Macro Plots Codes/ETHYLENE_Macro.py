@@ -345,27 +345,33 @@ _crackers_json_path = os.path.join(
     "assets",
     "existing_steam_crackers.json",
 )
-with open(_crackers_json_path) as _f:
-    _crackers = json.load(_f)
 
-_total_cap_mwh_per_hr = sum(
-    inst["edges"]["ethane_consumption_edge"]["existing_capacity"]
-    for asset in _crackers["steamcracker_existing"]
-    for inst in asset["instance_data"]
-)
+existing_cracker_cap = None
+try:
+    with open(_crackers_json_path) as _f:
+        _crackers = json.load(_f)
 
-# Existing steam cracker capacity: MWh-ethane/hr → t-ethylene/yr
-_t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
-_mwh_ethane_p_t_ethane = 14.41666667      # MWh-ethane/t-ethane (LHV)
+    _total_cap_mwh_per_hr = sum(
+        inst["edges"]["ethane_consumption_edge"]["existing_capacity"]
+        for asset in _crackers["steamcracker_existing"]
+        for inst in asset["instance_data"]
+    )
 
-print(f"_total_cap_mwh_per_hr: {_total_cap_mwh_per_hr}")
-print(f"_mwh_ethane_p_t_ethane: {_mwh_ethane_p_t_ethane}")
-print(f"_t_ethane_p_t_ethylene: {_t_ethane_p_t_ethylene}")
+    # Existing steam cracker capacity: MWh-ethane/hr → t-ethylene/yr
+    _t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
+    _mwh_ethane_p_t_ethane = 14.41666667      # MWh-ethane/t-ethane (LHV)
 
-# MWh-ethane/hr ÷ (MWh/t-ethane) ÷ (t-ethane/t-ethylene) × 8760 hr/yr → t-ethylene/yr
-existing_cracker_cap = (
-    _total_cap_mwh_per_hr / _mwh_ethane_p_t_ethane / _t_ethane_p_t_ethylene * 8760
-)
+    print(f"_total_cap_mwh_per_hr: {_total_cap_mwh_per_hr}")
+    print(f"_mwh_ethane_p_t_ethane: {_mwh_ethane_p_t_ethane}")
+    print(f"_t_ethane_p_t_ethylene: {_t_ethane_p_t_ethylene}")
+
+    # MWh-ethane/hr ÷ (MWh/t-ethane) ÷ (t-ethane/t-ethylene) × 8760 hr/yr → t-ethylene/yr
+    existing_cracker_cap = (
+        _total_cap_mwh_per_hr / _mwh_ethane_p_t_ethane / _t_ethane_p_t_ethylene * 8760
+    )
+except Exception as exc:
+    print(f"Warning: could not load existing steam cracker capacity for {scenario_names[0]} "
+          f"from {_crackers_json_path}: {exc}")
 
 
 # ---------------------------------------------------------------------
@@ -418,10 +424,11 @@ ax.set_title("Ethylene Balance (tonnes)", fontsize=16)
 ax.tick_params(axis="x", labelsize=14)
 
 ax.axvline(x=0, color="black", linewidth=1, linestyle="--")
-ax.axvline(x=existing_cracker_cap, color="red", linewidth=1.5, linestyle="--",
-           label="Total Existing Capacity")
-ax.axvline(x=0.8 * existing_cracker_cap, color="red", linewidth=1, linestyle=":",#
-           label="80% Existing Capacity")
+if existing_cracker_cap is not None:
+    ax.axvline(x=existing_cracker_cap, color="red", linewidth=1.5, linestyle="--",
+               label="Total Existing Capacity")
+    ax.axvline(x=0.8 * existing_cracker_cap, color="red", linewidth=1, linestyle=":",
+               label="80% Existing Capacity")
 ax.invert_yaxis()
 
 handles, labels = ax.get_legend_handles_labels()
@@ -474,6 +481,28 @@ for col in active_cols:
         hovertemplate='%{fullData.name}: %{x:.2f} tonnes<extra></extra>',
     ))
 
+_capacity_shapes = []
+_capacity_annotations = []
+if existing_cracker_cap is not None:
+    _capacity_shapes = [
+        dict(type='line', x0=existing_cracker_cap, x1=existing_cracker_cap,
+             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+             line=dict(color='red', width=1.5, dash='dash')),
+        dict(type='line', x0=0.8 * existing_cracker_cap, x1=0.8 * existing_cracker_cap,
+             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
+             line=dict(color='red', width=1, dash='dot')),
+    ]
+    _capacity_annotations = [
+        dict(x=existing_cracker_cap, y=len(plot_df) - 0.5,
+             xref='x', yref='y', yanchor='bottom',
+             text='Total Existing Capacity', showarrow=False,
+             font=dict(color='red', size=11)),
+        dict(x=0.8 * existing_cracker_cap, y=len(plot_df) - 0.5,
+             xref='x', yref='y', yanchor='bottom',
+             text='80% Existing Capacity', showarrow=False,
+             font=dict(color='red', size=11)),
+    ]
+
 fig_plotly.update_layout(
     barmode='relative',
     title='Ethylene Balance (tonnes)',
@@ -484,23 +513,8 @@ fig_plotly.update_layout(
         dict(type='line', x0=0, x1=0, y0=-0.5,
              y1=len(plot_df) - 0.5, yref='y',
              line=dict(color='black', width=1, dash='dash')),
-        dict(type='line', x0=existing_cracker_cap, x1=existing_cracker_cap,
-             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
-             line=dict(color='red', width=1.5, dash='dash')),
-        dict(type='line', x0=0.8 * existing_cracker_cap, x1=0.8 * existing_cracker_cap,
-             y0=-0.5, y1=len(plot_df) - 0.5, yref='y',
-             line=dict(color='red', width=1, dash='dot')),
-    ],
-    annotations=[
-        dict(x=existing_cracker_cap, y=len(plot_df) - 0.5,
-             xref='x', yref='y', yanchor='bottom',
-             text='Total Existing Capacity', showarrow=False,
-             font=dict(color='red', size=11)),
-        dict(x=0.8 * existing_cracker_cap, y=len(plot_df) - 0.5,
-             xref='x', yref='y', yanchor='bottom',
-             text='80% Existing Capacity', showarrow=False,
-             font=dict(color='red', size=11)),
-    ],
+    ] + _capacity_shapes,
+    annotations=_capacity_annotations,
     height=max(400, 80 * len(plot_df)),
 )
 

@@ -43,13 +43,14 @@ desired_order = [
     "Bio FT (High Jetfuel) High CCS",
     "Bio FT (High Diesel) Mid CCS",
     "Bio FT (High Diesel) High CCS",
+    "Bio FT (High Diesel) Non CCS",
     "SFT Non CCS",
     "SFT CCS",
     "Ethylene Gasoline",
     "Ethanol to Gasoline",
     "Ethanol to Diesel",
     "Ethanol to JetFuel",
-    "Ethanol to Diesel JetFuel",
+    "Ethanol to Gasoline Diesel",
     "Fossil",
 ]
 
@@ -61,13 +62,14 @@ category_colors = {
     "Bio FT (High Jetfuel) High CCS": "chocolate",
     "Bio FT (High Diesel) Mid CCS": "limegreen",
     "Bio FT (High Diesel) High CCS": "forestgreen",
+    "Bio FT (High Diesel) Non CCS": "yellowgreen",
     "SFT Non CCS": "purple",
     "SFT CCS": "indigo",
     "Ethylene Gasoline": "#e8630a",
     "Ethanol to Gasoline":      "#ffd700",
     "Ethanol to Diesel":        "#ffd700",
     "Ethanol to JetFuel":       "#ffd700",
-    "Ethanol to Diesel JetFuel": "#ffd700",
+    "Ethanol to Gasoline Diesel": "#ffd700",
     "Fossil": "grey",
     "Non-Served Demand": "red",
 }
@@ -80,13 +82,14 @@ label_map = {
     "Bio FT (High Jetfuel) High CCS": "Bio-FT (Jet) CC84",
     "Bio FT (High Diesel) Mid CCS": "Bio-FT (Diesel) CC53",
     "Bio FT (High Diesel) High CCS": "Bio-FT (Diesel) CC99",
+    "Bio FT (High Diesel) Non CCS": "Bio-FT (Diesel)",
     "SFT Non CCS": "Syn-FT (Jet)",
     "SFT CCS": "Syn-FT (Jet) CC99",
     "Ethylene Gasoline": "Ethylene Gasoline",
     "Ethanol to Gasoline":      "Eth. Upgrading (Gasoline)",
     "Ethanol to Diesel":        "Eth. Upgrading (Diesel)",
     "Ethanol to JetFuel":       "Eth. Upgrading (JetFuel)",
-    "Ethanol to Diesel JetFuel": "Eth. Upgrading (Diesel+Jet)",
+    "Ethanol to Gasoline Diesel": "Eth. Upgrading (Gasoline+Diesel)",
     "Fossil": "Fossil Liquids",
     "Non-Served Demand": "Non-Served Demand",
 }
@@ -190,9 +193,14 @@ def map_macro_lf_category(row):
         if "high_diesel_ccs_53" in text or ("high_diesel" in text and "53" in text):
             return "Bio FT (High Diesel) Mid CCS"
 
-        # Not included in desired_order, following your reference plot.
-        if "high_diesel_non_ccs" in text or ("high_diesel" in text and "non" in text):
-            return None
+        # Non-CCS High-Diesel FT: explicit "_Non_CCS_" infix for Herb/Wood
+        # feedstocks, or no CCS/Non_CCS infix at all for Agri (confirmed via
+        # beccs_liquid_fuels.json: <zone>_FT_High_Diesel_Agri has no suffix,
+        # alongside its own _CCS_53_Agri/_CCS_99_Agri siblings — the bare id
+        # is Agri's non-CCS option). Once 99/53 are ruled out above, any
+        # remaining "high_diesel" match is non-CCS by elimination.
+        if "high_diesel" in text:
+            return "Bio FT (High Diesel) Non CCS"
 
         if "high_jetfuel" in text:
             return "Bio FT (High Jetfuel) High CCS"
@@ -298,8 +306,8 @@ _LF_PROD_EDGES = (
 # (plot_category, asset_substring, exclude_substring_or_None)
 _ETHANOL_UPGRADING_ASSETS = [
     ("Ethanol to Gasoline",      "_Ethanol_to_Gasoline_",      None),
-    ("Ethanol to Diesel JetFuel", "_Ethanol_to_Diesel_JetFuel_", None),
-    ("Ethanol to Diesel",        "_Ethanol_to_Diesel_",        "_Ethanol_to_Diesel_JetFuel_"),
+    ("Ethanol to Gasoline Diesel", "_Ethanol_to_Gasoline_Diesel_", None),
+    ("Ethanol to Diesel",        "_Ethanol_to_Diesel_",       None),
     ("Ethanol to JetFuel",       "_Ethanol_to_JetFuel_",       None),
 ]
 

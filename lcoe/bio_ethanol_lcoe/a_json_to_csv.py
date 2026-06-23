@@ -1,9 +1,14 @@
 import json
 import csv
 import io
+import os
+import sys
 
-# change this manual file path!
-manual_file_path = "/Users/abbie/MacroEnergy-Abbie.jl/MacroEnergyExamples/9Zone_US/allethylene_168hr"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+sys.path.append(REPO_ROOT)
+from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_input_paths
+
 
 def json_to_csv_transforms(json_data, output_path=None, field_map=None):
     """
@@ -21,6 +26,8 @@ def json_to_csv_transforms(json_data, output_path=None, field_map=None):
     """
 
     # ── DEFAULT FIELD MAP ──────────────────────────────────────────────────────
+    # For assets whose fields are nested under "transforms"/"edges"
+    # (e.g. existing_drymill.json, drymill_ccs_retrofit_option.json).
     # Each entry: (output column name, source, json key)
     # source = "id" | "transforms" | "edge:<edge_name>"
     DEFAULT_FIELD_MAP = [
@@ -31,8 +38,10 @@ def json_to_csv_transforms(json_data, output_path=None, field_map=None):
         ("ethanol_production", "transforms",                  "ethanol_production"),
         ("natgas_consumption",         "transforms",                  "natgas_consumption"),
         ("co2_biomass_content",         "transforms",                  "co2_biomass_content"),
-        ("capture_rate",             "transforms",                  "capture_rate"),
-        ("emission_rate",            "transforms",                  "emission_rate"),
+        ("process_capture_rate",     "transforms",                  "process_capture_rate"),
+        ("process_emission_rate",    "transforms",                  "process_emission_rate"),
+        ("fuel_capture_rate",        "transforms",                  "fuel_capture_rate"),
+        ("fuel_emission_rate",       "transforms",                  "fuel_emission_rate"),
         ("investment_cost",        "edge:biomass_consumption_edge", "investment_cost"),
         ("fixed_om_cost",          "edge:biomass_consumption_edge", "fixed_om_cost"),
         ("variable_om_cost",             "edge:biomass_consumption_edge", "variable_om_cost"),
@@ -85,19 +94,46 @@ def json_to_csv_transforms(json_data, output_path=None, field_map=None):
     return rows
 
 
-# ── USAGE ─────────────────────────────────────────────────────────────────────
+# For cellulosic_ethanol.json: fields live directly on the instance dict
+# (no "transforms"/"edges" nesting), and the commodity key is named differently.
+CELLULOSIC_FIELD_MAP = [
+    ("id",                      "id", "id"),
+    ("commodity",                "id", "biomass_consumption_commodity"),
+    ("elec_production",          "id", "elec_production"),
+    ("elec_consumption",         "id", "elec_consumption"),
+    ("ethanol_production",       "id", "ethanol_production"),
+    ("natgas_consumption",       "id", "natgas_consumption"),
+    ("co2_biomass_content",      "id", "co2_biomass_content"),
+    ("process_capture_rate",     "id", "process_capture_rate"),
+    ("process_emission_rate",    "id", "process_emission_rate"),
+    ("fuel_capture_rate",        "id", "fuel_capture_rate"),
+    ("fuel_emission_rate",       "id", "fuel_emission_rate"),
+    ("investment_cost",          "id", "investment_cost"),
+    ("fixed_om_cost",            "id", "fixed_om_cost"),
+    ("variable_om_cost",         "id", "variable_om_cost"),
+]
 
-# Default mapping
-with open(f'{manual_file_path}/assets/bioethanol.json') as f:
-    data = json.load(f)
-rows = json_to_csv_transforms(data, output_path=f'{manual_file_path}/assets/bioethanol.csv')
+# (json filename in <scenario>/assets/, output csv filename, field_map override)
+ASSET_FILES = [
+    ("cellulosic_ethanol.json", "cellulosic_ethanol.csv", CELLULOSIC_FIELD_MAP),
+    ("existing_drymill.json", "existing_drymill.csv", None),
+    ("drymill_ccs_retrofit_option.json", "drymill_ccs_retrofit_option.csv", None),
+]
 
-with open(f'{manual_file_path}/assets/drymillethanol.json') as f:
-    data = json.load(f)
-rows = json_to_csv_transforms(data, output_path=f'{manual_file_path}/assets/drymillethanol.csv')
 
-with open(f'{manual_file_path}/assets/drymillccsethanol_retrofit_option.json') as f:
-    data = json.load(f)
-rows = json_to_csv_transforms(data, output_path=f'{manual_file_path}/assets/drymillccsethanol_retrofit_option.csv')
+if __name__ == "__main__":
+    for label in scenario_names:
+        assets_dir = os.path.join(macro_base_dir, macro_input_paths[label], "assets")
+        out_dir = os.path.join(SCRIPT_DIR, label)
+        os.makedirs(out_dir, exist_ok=True)
 
-print("DONE JSON TURNED TO CSV")
+        for json_name, csv_name, field_map in ASSET_FILES:
+            json_path = os.path.join(assets_dir, json_name)
+            if not os.path.exists(json_path):
+                print(f"Warning: asset file not found for scenario {label}: {json_path}")
+                continue
+            with open(json_path) as f:
+                data = json.load(f)
+            json_to_csv_transforms(data, output_path=os.path.join(out_dir, csv_name), field_map=field_map)
+
+    print("DONE JSON TURNED TO CSV FOR ALL SCENARIOS")

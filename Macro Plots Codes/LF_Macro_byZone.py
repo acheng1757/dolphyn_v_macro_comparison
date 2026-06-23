@@ -32,6 +32,7 @@ desired_order = [
     "Bio FT (High Jetfuel) High CCS",
     "Bio FT (High Diesel) Mid CCS",
     "Bio FT (High Diesel) High CCS",
+    "Bio FT (High Diesel) Non CCS",
     "SFT Non CCS",
     "SFT CCS",
     "Ethylene Gasoline",
@@ -48,6 +49,7 @@ category_colors = {
     "Bio FT (High Jetfuel) High CCS": "chocolate",
     "Bio FT (High Diesel) Mid CCS": "limegreen",
     "Bio FT (High Diesel) High CCS": "forestgreen",
+    "Bio FT (High Diesel) Non CCS": "yellowgreen",
     "SFT Non CCS": "purple",
     "SFT CCS": "indigo",
     "Ethylene Gasoline": "#e8630a",
@@ -64,6 +66,7 @@ label_map = {
     "Bio FT (High Jetfuel) High CCS": "Bio-FT (Jet) CC84",
     "Bio FT (High Diesel) Mid CCS": "Bio-FT (Diesel) CC53",
     "Bio FT (High Diesel) High CCS": "Bio-FT (Diesel) CC99",
+    "Bio FT (High Diesel) Non CCS": "Bio-FT (Diesel)",
     "SFT Non CCS": "Syn-FT (Jet)",
     "SFT CCS": "Syn-FT (Jet) CC99",
     "Ethylene Gasoline": "Ethylene Gasoline",
@@ -199,8 +202,14 @@ def map_macro_lf_category(row):
         if "high_diesel_ccs_53" in text or ("high_diesel" in text and "53" in text):
             return "Bio FT (High Diesel) Mid CCS"
 
-        if "high_diesel_non_ccs" in text or ("high_diesel" in text and "non" in text):
-            return None
+        # Non-CCS High-Diesel FT: explicit "_Non_CCS_" infix for Herb/Wood
+        # feedstocks, or no CCS/Non_CCS infix at all for Agri (confirmed via
+        # beccs_liquid_fuels.json: <zone>_FT_High_Diesel_Agri has no suffix,
+        # alongside its own _CCS_53_Agri/_CCS_99_Agri siblings — the bare id
+        # is Agri's non-CCS option). Once 99/53 are ruled out above, any
+        # remaining "high_diesel" match is non-CCS by elimination.
+        if "high_diesel" in text:
+            return "Bio FT (High Diesel) Non CCS"
 
         if "high_jetfuel" in text:
             return "Bio FT (High Jetfuel) High CCS"

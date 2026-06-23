@@ -6,21 +6,17 @@ macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 dolphyn_results_folder = "Results_1"
 
-# Only edit this list: (label, results_path_relative_to_macro_base_dir, system_folder)
-#_scenarios = [
-#    ("1", "intuition_test/2_ethanol_ccs_lf/results_001/results", "system"),
-#    ("2", "intuition_test/2_ethanol_ccs_lf/results_002/results", "system"),
-#    ("5", "intuition_test/2_ethanol_ccs_lf/results_005/results", "system"),
-#    ("7", "intuition_test/2_ethanol_ccs_lf/results_007/results", "system"),
-#]
-
 _scenarios = [
-    ("1", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_001/results", "system_1"),
-    ("2", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_002/results", "system_1"),
-    ("3", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_003/results", "system_1a"),
-    ("4", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_004/results", "system_1a"),
-    ("5", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_005/results", "system_1a"),
-    ("6", "6_21_BIG_SCENARIOS/1_drymill_non_ccs/results_006/results", "system")
+    ("1", "6_23_CLEAR_SCENARIOS/1/results_001/results", "system"),
+    ("1a", "6_23_CLEAR_SCENARIOS/1a/results_001/results", "system"),
+    ("2", "6_23_CLEAR_SCENARIOS/2/results_001/results", "system"),
+    ("2a", "6_23_CLEAR_SCENARIOS/2a/results_001/results", "system"),
+    ("3", "6_23_CLEAR_SCENARIOS/3/results_001/results", "system"),
+    ("3a", "6_23_CLEAR_SCENARIOS/3a/results_001/results", "system"),
+    ("4", "6_23_CLEAR_SCENARIOS/4/results_001/results", "system"),
+    ("4a", "6_23_CLEAR_SCENARIOS/4a/results_001/results", "system"),
+    ("5", "6_23_CLEAR_SCENARIOS/5/results_001/results", "system"),
+    ("5a", "6_23_CLEAR_SCENARIOS/5a/results_001/results", "system"),
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios
@@ -136,14 +132,6 @@ sector_definitions = {
         ],
     },
 
-    "Transmission": {
-        "categories": [
-            ("Transmission", [
-                r"_to_",
-            ]),
-        ],
-    },
-
     "Liquid fuels": {
         "categories": [
             ("Fossil Petroleum Refinery", [
@@ -155,13 +143,48 @@ sector_definitions = {
                 r"Global_Jetfuel_Fossil_Upstream",
             ]),
             ("Gasoline Use", [
-                r"global_gasoline",
+                r"global_gasoline_use_co2",
+                r"global_gasoline_use_fuel_edge",
+            ]),
+            ("Gasoline 1a Use", [
+                r"global_gasoline_1a_use_co2",
+                r"global_gasoline_1a_use_fuel_edge",
+            ]),
+            ("Gasoline 1b Use", [
+                r"global_gasoline_1b_use_co2",
+                r"global_gasoline_1b_use_fuel_edge",
             ]),
             ("Diesel Use", [
-                r"global_diesel",
+                r"global_diesel_use_co2",
+                r"global_diesel_use_fuel_edge",
+            ]),
+            ("Diesel 1a Use", [
+                r"global_diesel_1a_use_co2",
+                r"global_diesel_1a_use_fuel_edge",
+            ]),
+            ("Diesel 1b Use", [
+                r"global_diesel_1b_use_co2",
+                r"global_diesel_1b_use_fuel_edge",
             ]),
             ("Jetfuel Use", [
-                r"global_jetfuel",
+                r"global_jetfuel_use_co2",
+                r"global_jetfuel_use_fuel_edge",
+            ]),
+            ("Jetfuel 1 Use", [
+                r"global_jetfuel_1_use_co2",
+                r"global_jetfuel_1_use_fuel_edge",
+            ]),
+            ("Ethanol Upgrade", [
+                r"Ethanol_to_Diesel",
+                r"Ethanol_to_Gasoline",
+                r"Ethanol_to_Jetfuel",
+            ]),        ],
+    },
+
+    "Transmission": {
+        "categories": [
+            ("Transmission", [
+                r"_to_",
             ]),
         ],
     },
@@ -1158,8 +1181,8 @@ def add_balance_labels(df):
             edge_lower.str.contains("global_fossil_petroleum_refinery_diesel_edge", na=False) |
             edge_lower.str.contains("global_diesel_fossil_upstream", na=False) |
 
-            edge_lower.str.contains("global_diesel_1a_fossil_upstream", na=False) |
-            edge_lower.str.contains("global_diesel_1b_fossil_upstream", na=False)
+            edge_lower.str.contains("global_diesel_1a_use_fuel_edge", na=False) |
+            edge_lower.str.contains("global_diesel_1b_use_fuel_edge", na=False)
         )
     )
     df.loc[is_lf_diesel, "Balance"] = "Diesel"

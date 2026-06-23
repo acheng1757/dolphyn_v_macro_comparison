@@ -6,7 +6,8 @@ to capture each figure as an image before assembling the grid.
 
 import html as _html
 import importlib.util
-import os 
+import json
+import os
 import sys
 import webbrowser
 from io import BytesIO, StringIO
@@ -168,6 +169,9 @@ if _s1 is not None:
     _base       = _s1.macro_base_dir
     _scen_paths = _s1.macro_scenario_paths
     _scen_names = _s1.scenario_names
+    _sys_folders = _s1.scenario_system_folders
+    _get_scenario_root = _s1.get_scenario_root_from_results_scenario
+    _input_paths = _s1.macro_input_paths
 
     # ── 1. Discounted costs: capex + variable ──────────────────────────
     _capex, _var = [], []
@@ -207,7 +211,7 @@ if _s1 is not None:
         plotly_titles.append('Cost')
 
     # ── 2. CO2 cap shadow price ────────────────────────────────────────
-    _co2_vals = []
+    _co2_scens, _co2_vals = [], []
     for _scen in _scen_names:
         _p = os.path.join(_base, _scen_paths.get(_scen, ''), 'co2_cap_duals.csv')
         try:
@@ -217,15 +221,16 @@ if _s1 is not None:
                 (c for c in _df.columns if 'shadow' in c.lower() or 'price' in c.lower()),
                 None,
             )
-            _co2_vals.append(float(_df[_pcol].iloc[0]) if _pcol else None)
+            if _pcol:
+                _co2_scens.append(_scen)
+                _co2_vals.append(float(_df[_pcol].iloc[0]))
         except Exception as _e:
             print(f"  Warning: co2_cap_duals.csv missing for scenario {_scen}: {_e}")
-            _co2_vals.append(None)
 
-    if any(v is not None for v in _co2_vals):
+    if _co2_vals:
         _fig_co2d = go.Figure()
         _fig_co2d.add_trace(go.Bar(
-            name='CO2 Shadow Price', y=_scen_names, x=_co2_vals,
+            name='CO2 Shadow Price', y=_co2_scens, x=_co2_vals,
             orientation='h', marker_color='darkblue',
             hovertemplate='CO2 Price: $%{x:.2f}/t<extra></extra>',
         ))
@@ -233,7 +238,7 @@ if _s1 is not None:
             title='CO2 Cap Shadow Price',
             xaxis_title='$/tonne CO2',
             yaxis=dict(autorange='reversed'),
-            height=max(400, 80 * len(_scen_names)),
+            height=max(400, 80 * len(_co2_scens)),
         )
         plotly_figs.append(_fig_co2d)
         plotly_titles.append('CO2 Cap Dual')
@@ -267,8 +272,9 @@ if _s1 is not None:
                     _zone_comm_groups.setdefault(_prefix, {})[_suffix] = _col
             _zonal_dual_by_scen[_scen] = {}
             for _comm, _zone_cols in _zone_comm_groups.items():
-                if set(_zone_cols) != set(_ZONE_LIST):
-                    continue  # skip commodities with incomplete zone coverage
+                # Commodities without a column for every zone (e.g. bioherb
+                # has no CA supply) still get plotted; missing zones are
+                # left as gaps via the .get() lookups below.
                 _zone_means = {}
                 for _zone, _col in _zone_cols.items():
                     _vals = _df[_col].values.astype(float)
@@ -351,6 +357,156 @@ if _s1 is not None:
             )
             plotly_figs.append(_fig_zonal)
             plotly_titles.append(f'Commodity Duals by Zone — Scenario {_scen}')
+
+    # ── 5. CO2 storage capacity by zone (input assumption, not a model
+    # output) — sum of rhs_policy.CO2StorageConstraint (tonnes/yr) across
+    # all CO2Captured storage instances in each zone, read straight from
+    # each scenario's system/nodes.json. ──────────────────────────────
+    _co2_storage_by_scen = {}
+    for _scen in _scen_names:
+        _scen_path = _scen_paths.get(_scen, '')
+        _scenario_root = _get_scenario_root(_scen_path)
+        _system_folder = _sys_folders.get(_scen_path, 'system')
+        _nodes_path = os.path.join(_base, _scenario_root, _system_folder, 'nodes.json')
+        _zone_totals = {z: 0.0 for z in _ZONE_LIST}
+        try:
+            with open(_nodes_path) as _f:
+                _nodes_data = json.load(_f)
+            for _block in _nodes_data.get('nodes', []):
+                if _block.get('type') != 'CO2Captured':
+                    continue
+                for _inst in _block.get('instance_data', []):
+                    _rhs = _inst.get('rhs_policy', {})
+                    if 'CO2StorageConstraint' not in _rhs:
+                        continue
+                    _zone = next((t for t in _inst['id'].split('_') if t in _ZONE_LIST), None)
+                    if _zone is not None:
+                        _zone_totals[_zone] += _rhs['CO2StorageConstraint']
+        except Exception as _e:
+            print(f"  Warning: nodes.json missing/unreadable for scenario {_scen}: {_e}")
+        _co2_storage_by_scen[_scen] = _zone_totals
+
+    if any(any(v > 0 for v in d.values()) for d in _co2_storage_by_scen.values()):
+        _fig_co2_storage = go.Figure()
+        for _i, _scen in enumerate(_scen_names):
+            _zone_totals = _co2_storage_by_scen.get(_scen, {})
+            _fig_co2_storage.add_trace(go.Bar(
+                name=f'Scenario {_scen}',
+                y=_ZONE_LIST,
+                x=[_zone_totals.get(z, 0.0) / 1e6 for z in _ZONE_LIST],
+                orientation='h',
+                marker_color=_pal[_i % len(_pal)],
+                hovertemplate='%{y}: %{x:.2f} Mt<extra>Scen. ' + _scen + '</extra>',
+            ))
+        _fig_co2_storage.update_layout(
+            barmode='group',
+            title='CO2 Storage Capacity by Zone',
+            xaxis_title='Mt CO2/yr',
+            yaxis=dict(autorange='reversed'),
+            legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+            height=max(500, 40 * len(_ZONE_LIST) * len(_scen_names) / 3),
+        )
+        plotly_figs.append(_fig_co2_storage)
+        plotly_titles.append('CO2 Storage Capacity by Zone')
+
+    # ── 6. Biomass availability by zone (input assumption, not a model
+    # output) — sum of supply-segment "max" fields (t-biomass/hr) across
+    # all instances of Biomass_Agri/Biomass_Herb/Biomass_Wood in each
+    # zone, read straight from system/nodes.json. Confirmed scenario-
+    # invariant (identical across 5c/5d/5h), so this reads only the
+    # first scenario whose nodes.json parses successfully rather than
+    # recomputing per scenario.
+    _BIOMASS_TYPES = ['Biomass_Agri', 'Biomass_Herb', 'Biomass_Wood']
+    _biomass_by_commodity = {c: {z: 0.0 for z in _ZONE_LIST} for c in _BIOMASS_TYPES}
+    for _scen in _scen_names:
+        _scen_path = _scen_paths.get(_scen, '')
+        _scenario_root = _get_scenario_root(_scen_path)
+        _system_folder = _sys_folders.get(_scen_path, 'system')
+        _nodes_path = os.path.join(_base, _scenario_root, _system_folder, 'nodes.json')
+        try:
+            with open(_nodes_path) as _f:
+                _nodes_data = json.load(_f)
+        except Exception as _e:
+            print(f"  Warning: nodes.json missing/unreadable for scenario {_scen}: {_e}")
+            continue
+        for _block in _nodes_data.get('nodes', []):
+            if _block.get('type') not in _BIOMASS_TYPES:
+                continue
+            _commodity = _block['type']
+            for _inst in _block.get('instance_data', []):
+                _zone = _inst.get('location')
+                if _zone not in _ZONE_LIST:
+                    continue
+                _max_total = sum(_seg.get('max', 0.0) for _seg in _inst.get('supply', {}).values())
+                _biomass_by_commodity[_commodity][_zone] += _max_total
+        break  # scenario-invariant input; first readable scenario suffices
+
+    if any(any(v > 0 for v in d.values()) for d in _biomass_by_commodity.values()):
+        _biomass_colors = {'Biomass_Agri': '#2ca02c', 'Biomass_Herb': '#bcbd22', 'Biomass_Wood': '#8c564b'}
+        _biomass_names = {'Biomass_Agri': 'Agricultural Residue', 'Biomass_Herb': 'Herbaceous', 'Biomass_Wood': 'Woody'}
+        _fig_biomass = go.Figure()
+        for _commodity in _BIOMASS_TYPES:
+            _fig_biomass.add_trace(go.Bar(
+                name=_biomass_names[_commodity],
+                y=_ZONE_LIST,
+                x=[_biomass_by_commodity[_commodity].get(z, 0.0) for z in _ZONE_LIST],
+                orientation='h',
+                marker_color=_biomass_colors[_commodity],
+                hovertemplate='%{fullData.name}: %{x:.2f} t-biomass/hr<extra></extra>',
+            ))
+        _fig_biomass.update_layout(
+            barmode='group',
+            title='Biomass Availability by Zone',
+            xaxis_title='Max t-biomass/hr',
+            yaxis=dict(autorange='reversed'),
+            legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+            height=max(500, 40 * len(_ZONE_LIST)),
+        )
+        plotly_figs.append(_fig_biomass)
+        plotly_titles.append('Biomass Availability by Zone')
+
+    # ── 7. CO2 injection capacity by zone (input assumption, not a model
+    # output) — sum of existing_capacity (t-CO2/hr) across all
+    # CO2Injection instances in each zone, read straight from each
+    # scenario's assets/co2_injection.json.
+    _co2_injection_by_scen = {}
+    for _scen in _scen_names:
+        _assets_path = os.path.join(_base, _input_paths.get(_scen, ''), 'assets', 'co2_injection.json')
+        _zone_totals = {z: 0.0 for z in _ZONE_LIST}
+        try:
+            with open(_assets_path) as _f:
+                _injection_data = json.load(_f)
+            for _block in _injection_data.get('CO2Injection', []):
+                for _inst in _block.get('instance_data', []):
+                    _zone = next((t for t in _inst['id'].split('_') if t in _ZONE_LIST), None)
+                    if _zone is not None:
+                        _zone_totals[_zone] += _inst.get('existing_capacity', 0.0)
+        except Exception as _e:
+            print(f"  Warning: co2_injection.json missing/unreadable for scenario {_scen}: {_e}")
+        _co2_injection_by_scen[_scen] = _zone_totals
+
+    if any(any(v > 0 for v in d.values()) for d in _co2_injection_by_scen.values()):
+        _fig_co2_injection = go.Figure()
+        for _i, _scen in enumerate(_scen_names):
+            _zone_totals = _co2_injection_by_scen.get(_scen, {})
+            _fig_co2_injection.add_trace(go.Bar(
+                name=f'Scenario {_scen}',
+                y=_ZONE_LIST,
+                x=[_zone_totals.get(z, 0.0) for z in _ZONE_LIST],
+                orientation='h',
+                marker_color=_pal[_i % len(_pal)],
+                hovertemplate='%{y}: %{x:.2f} t/hr<extra>Scen. ' + _scen + '</extra>',
+            ))
+        _fig_co2_injection.update_layout(
+            barmode='group',
+            title='CO2 Injection Capacity by Zone',
+            xaxis_title='Existing Capacity (t-CO2/hr)',
+            yaxis=dict(autorange='reversed'),
+            legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
+            height=max(500, 40 * len(_ZONE_LIST) * len(_scen_names) / 3),
+        )
+        plotly_figs.append(_fig_co2_injection)
+        plotly_titles.append('CO2 Injection Capacity by Zone')
 else:
     print("Warning: Step_1 module not in sys.modules; skipping cost/dual charts.")
 
