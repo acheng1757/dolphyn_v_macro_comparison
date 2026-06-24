@@ -412,58 +412,66 @@ if _s1 is not None:
     # ── 6. Biomass availability by zone (input assumption, not a model
     # output) — sum of supply-segment "max" fields (t-biomass/hr) across
     # all instances of Biomass_Agri/Biomass_Herb/Biomass_Wood in each
-    # zone, read straight from system/nodes.json. Confirmed scenario-
-    # invariant (identical across 5c/5d/5h), so this reads only the
-    # first scenario whose nodes.json parses successfully rather than
-    # recomputing per scenario.
+    # zone, read straight from system/nodes.json. Unlike CO2 storage,
+    # this DOES vary by scenario in the current scenario set (the base
+    # 1-5 scenarios share one biomass-availability profile, the 1a-5a
+    # variants share a different, lower one) — confirmed via per-
+    # scenario nodes.json content, not just the file path — so this
+    # reads every scenario (no early break) and renders one chart per
+    # commodity with one bar per scenario, matching the CO2 storage/
+    # injection charts' layout.
     _BIOMASS_TYPES = ['Biomass_Agri', 'Biomass_Herb', 'Biomass_Wood']
-    _biomass_by_commodity = {c: {z: 0.0 for z in _ZONE_LIST} for c in _BIOMASS_TYPES}
+    _biomass_by_scen = {}
     for _scen in _scen_names:
         _scen_path = _scen_paths.get(_scen, '')
         _scenario_root = _get_scenario_root(_scen_path)
         _system_folder = _sys_folders.get(_scen_path, 'system')
         _nodes_path = os.path.join(_base, _scenario_root, _system_folder, 'nodes.json')
+        _by_commodity = {c: {z: 0.0 for z in _ZONE_LIST} for c in _BIOMASS_TYPES}
         try:
             with open(_nodes_path) as _f:
                 _nodes_data = json.load(_f)
+            for _block in _nodes_data.get('nodes', []):
+                if _block.get('type') not in _BIOMASS_TYPES:
+                    continue
+                _commodity = _block['type']
+                for _inst in _block.get('instance_data', []):
+                    _zone = _inst.get('location')
+                    if _zone not in _ZONE_LIST:
+                        continue
+                    _max_total = sum(_seg.get('max', 0.0) for _seg in _inst.get('supply', {}).values())
+                    _by_commodity[_commodity][_zone] += _max_total
         except Exception as _e:
             print(f"  Warning: nodes.json missing/unreadable for scenario {_scen}: {_e}")
-            continue
-        for _block in _nodes_data.get('nodes', []):
-            if _block.get('type') not in _BIOMASS_TYPES:
-                continue
-            _commodity = _block['type']
-            for _inst in _block.get('instance_data', []):
-                _zone = _inst.get('location')
-                if _zone not in _ZONE_LIST:
-                    continue
-                _max_total = sum(_seg.get('max', 0.0) for _seg in _inst.get('supply', {}).values())
-                _biomass_by_commodity[_commodity][_zone] += _max_total
-        break  # scenario-invariant input; first readable scenario suffices
+        _biomass_by_scen[_scen] = _by_commodity
 
-    if any(any(v > 0 for v in d.values()) for d in _biomass_by_commodity.values()):
-        _biomass_colors = {'Biomass_Agri': '#2ca02c', 'Biomass_Herb': '#bcbd22', 'Biomass_Wood': '#8c564b'}
-        _biomass_names = {'Biomass_Agri': 'Agricultural Residue', 'Biomass_Herb': 'Herbaceous', 'Biomass_Wood': 'Woody'}
+    _biomass_colors = {'Biomass_Agri': '#2ca02c', 'Biomass_Herb': '#bcbd22', 'Biomass_Wood': '#8c564b'}
+    _biomass_names = {'Biomass_Agri': 'Agricultural Residue', 'Biomass_Herb': 'Herbaceous', 'Biomass_Wood': 'Woody'}
+
+    for _commodity in _BIOMASS_TYPES:
+        if not any(any(v > 0 for v in _biomass_by_scen[_scen][_commodity].values()) for _scen in _scen_names):
+            continue
         _fig_biomass = go.Figure()
-        for _commodity in _BIOMASS_TYPES:
+        for _i, _scen in enumerate(_scen_names):
+            _zone_totals = _biomass_by_scen[_scen][_commodity]
             _fig_biomass.add_trace(go.Bar(
-                name=_biomass_names[_commodity],
+                name=f'Scenario {_scen}',
                 y=_ZONE_LIST,
-                x=[_biomass_by_commodity[_commodity].get(z, 0.0) for z in _ZONE_LIST],
+                x=[_zone_totals.get(z, 0.0) for z in _ZONE_LIST],
                 orientation='h',
-                marker_color=_biomass_colors[_commodity],
-                hovertemplate='%{fullData.name}: %{x:.2f} t-biomass/hr<extra></extra>',
+                marker_color=_pal[_i % len(_pal)],
+                hovertemplate='%{y}: %{x:.2f} t-biomass/hr<extra>Scen. ' + _scen + '</extra>',
             ))
         _fig_biomass.update_layout(
             barmode='group',
-            title='Biomass Availability by Zone',
+            title=f'{_biomass_names[_commodity]} Biomass Availability by Zone',
             xaxis_title='Max t-biomass/hr',
             yaxis=dict(autorange='reversed'),
             legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
-            height=max(500, 40 * len(_ZONE_LIST)),
+            height=max(500, 40 * len(_ZONE_LIST) * len(_scen_names) / 3),
         )
         plotly_figs.append(_fig_biomass)
-        plotly_titles.append('Biomass Availability by Zone')
+        plotly_titles.append(f'{_biomass_names[_commodity]} Biomass Availability by Zone')
 
     # ── 7. CO2 injection capacity by zone (input assumption, not a model
     # output) — sum of existing_capacity (t-CO2/hr) across all

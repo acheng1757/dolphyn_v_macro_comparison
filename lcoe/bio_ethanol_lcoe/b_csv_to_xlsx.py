@@ -62,6 +62,12 @@ for label in scenario_names:
         if xlsx_header in xlsx_header_to_idx:
             csv_field_to_col_idx[csv_field] = xlsx_header_to_idx[xlsx_header]
 
+    # Clear any stale template values in the columns we're about to repopulate,
+    # so leftover sample rows beyond the new data don't carry over.
+    for row in range(DATA_START_ROW, ws.max_row + 1):
+        for col_idx in csv_field_to_col_idx.values():
+            ws.cell(row=row, column=col_idx).value = None
+
     for r_offset, row_data in enumerate(combined_df.itertuples(index=False)):
         for csv_field, col_idx in csv_field_to_col_idx.items():
             value = getattr(row_data, csv_field, None)

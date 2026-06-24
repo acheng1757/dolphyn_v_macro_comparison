@@ -7,14 +7,6 @@ dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn
 dolphyn_results_folder = "Results_1"
 
 _scenarios = [
-    ("1", "6_23_CLEAR_SCENARIOS/1/results_001/results", "system"),
-    ("1a", "6_23_CLEAR_SCENARIOS/1a/results_001/results", "system"),
-    ("2", "6_23_CLEAR_SCENARIOS/2/results_001/results", "system"),
-    ("2a", "6_23_CLEAR_SCENARIOS/2a/results_001/results", "system"),
-    ("3", "6_23_CLEAR_SCENARIOS/3/results_001/results", "system"),
-    ("3a", "6_23_CLEAR_SCENARIOS/3a/results_001/results", "system"),
-    ("4", "6_23_CLEAR_SCENARIOS/4/results_001/results", "system"),
-    ("4a", "6_23_CLEAR_SCENARIOS/4a/results_001/results", "system"),
     ("5", "6_23_CLEAR_SCENARIOS/5/results_001/results", "system"),
     ("5a", "6_23_CLEAR_SCENARIOS/5a/results_001/results", "system"),
 ]

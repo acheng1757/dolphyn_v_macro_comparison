@@ -77,8 +77,8 @@ category_colors = {
 }
 
 category_names = {
-    "Biomass Capture": " Non-Ethanol Biomass",
-    "Ethanol Biomass Capture": "Ethanol Biomass",
+    "Biomass Capture": " Non-Ethanol Biomass CO2 Content",
+    "Ethanol Biomass Capture": "Ethanol Biomass CO2 Content",
     "DAC Capture": "DAC",
     "Conventional Liquid Fuels": "Fossil Liquid Fuels",
     "Conventional NG": "Fossil NG Process",
