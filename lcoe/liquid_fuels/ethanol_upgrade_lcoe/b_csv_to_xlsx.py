@@ -8,21 +8,21 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SCRIPT_DIR)))
 sys.path.append(REPO_ROOT)
 from Step_1_Process_Macro_Flows_and_Balance_Demand import scenario_names
 
-from lcoe.ethylene.bio_ethylene_lcoe.a_json_to_csv import ASSET_FILES
+from lcoe.liquid_fuels.ethanol_upgrade_lcoe.a_json_to_csv import ASSET_FILES
 
-TEMPLATE_XLSX_PATH = os.path.join(SCRIPT_DIR, "LCOE_BIO_ETHYLENE_TEMPLATE.xlsx")
+TEMPLATE_XLSX_PATH = os.path.join(SCRIPT_DIR, "LCOE_ETHANOL_UPGRADE_TEMPLATE.xlsx")
 
 CSV_TO_XLSX_MAP = {
     "id":                  "id",
     "commodity":           "commodity",
     "elec_consumption":    "elec_consumption (MWh/MWh-ethanol)",
+    "elec_production":     "elec_production (MWh/MWh-ethanol)",
     "h2_consumption":    "h2_consumption (MWh/MWh-ethanol)",
-    "ethylene_production": "ethylene_production (t-ethylene/MWh-ethanol)",
-    "natgas_consumption":  "natgas_consumption (MWh/MWh-ethanol)",
-    "process_capture_rate":        "process_capture_rate (t-CO2/MWh-ethanol)",
-    "process_emission_rate":       "process_emission_rate (t-CO2/MWh-ethanol)",
-    "fuel_capture_rate":        "fuel_capture_rate (t-CO2/MWh-ethanol)",
-    "fuel_emission_rate":       "fuel_emission_rate (t-CO2/MWh-ethanol)",
+    "gasoline_production": "gasoline_production (MWh-gasoline/MWh-ethanol)",
+    "diesel_production": "diesel_production (MWh-diesel/MWh-ethanol)",
+    "jetfuel_production": "jetfuel_production (MWh-jetfuel/MWh-ethanol)",
+    "capture_rate":        "process_capture_rate (t-CO2/MWh-ethanol)",
+    "emission_rate":       "process_emission_rate (t-CO2/MWh-ethanol)",
     "investment_cost":     "investment_cost ($/yr per MW ethanol)",
     "fixed_om_cost":       "fixed_om_cost ($/yr per MW ethanol)",
     "variable_om_cost":    "variable_om_cost ($/MWh-ethanol)",
@@ -74,7 +74,7 @@ for label in scenario_names:
                 value = None
             ws.cell(row=DATA_START_ROW + r_offset, column=col_idx, value=value)
 
-    out_xlsx_path = os.path.join(SCRIPT_DIR, f"LCOE_BIO_ETHYLENE_{label}.xlsx")
+    out_xlsx_path = os.path.join(SCRIPT_DIR, f"LCOE_ETHANOL_UPGRADE_{label}.xlsx")
     wb.save(out_xlsx_path)
     print(f"Scenario {label}: {len(combined_df)} rows written to {out_xlsx_path}")
 

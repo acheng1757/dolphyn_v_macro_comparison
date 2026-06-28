@@ -91,7 +91,7 @@ def get_dual_value(duals_df, xlsx_col, zone):
 
 if __name__ == "__main__":
     for label in scenario_names:
-        xlsx_path = os.path.join(SCRIPT_DIR, f"LCOE_BIO_ETHYLENE_{label}.xlsx")
+        xlsx_path = os.path.join(SCRIPT_DIR, f"LCOE_ETHANOL_UPGRADE_{label}.xlsx")
 
         duals_df, co2_sink = load_scenario_duals(label)
         if duals_df is None:
@@ -160,7 +160,7 @@ if __name__ == "__main__":
         finally:
             app.quit()
 
-        csv_path = os.path.join(SCRIPT_DIR, f"LCOE_BIO_ETHYLENE_{label}.csv")
+        csv_path = os.path.join(SCRIPT_DIR, f"LCOE_ETHANOL_UPGRADE_{label}.csv")
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerows(summary_values)

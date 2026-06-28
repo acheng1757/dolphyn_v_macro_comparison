@@ -13,11 +13,12 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenar
 # ── Mapping: xlsx dual column header → CSV column prefix ──────────────────────
 DUAL_COLUMN_MAP = {
     "elec_demand ($/MWh)":     "elec",
-    "biocorn_supply ($/t)":     "biocorn",
-    "bioherb_supply ($/t)":     "bioherb",
-    "biowood_supply ($/t)":     "biowood",
-    "bioagri_supply ($/t)":     "bioagri",
-    "elec_demand ($/MWh)":     "elec",
+    "h2_balance ($/MWh)":      "h2",
+    "ng_balance ($/MWh)":      "natgas",
+    "bioherb_supply ($/t)":  "bioherb",
+    "biowood_supply ($/t)":  "biowood",
+    "bioagri_supply ($/t)":  "bioagri",
+    "biocorn_supply ($/t)":  "biocorn",
     "co2_captured ($/t)":  "co2_captured",
 }
 
@@ -30,14 +31,7 @@ def extract_zone(asset_id: str) -> str:
 
 
 def load_scenario_duals(label):
-    """
-    Returns (duals_df, co2_sink) for a scenario, or (None, None) if
-    balance_duals.csv isn't found. duals_df is the raw balance_duals.csv
-    frame (one column per zone/global balance); use get_dual_value() to
-    look up a specific xlsx dual column for a given zone. If
-    co2_cap_duals.csv is missing (e.g. the scenario has no CO2 cap),
-    co2_sink defaults to 0 instead of bailing out.
-    """
+
     results_dir = os.path.join(macro_base_dir, macro_scenario_paths[label])
     duals_csv_path = os.path.join(results_dir, "balance_duals.csv")
     co2_duals_csv_path = os.path.join(results_dir, "co2_cap_duals.csv")
@@ -57,10 +51,7 @@ def load_scenario_duals(label):
 
 
 def load_scenario_capacity(label):
-    """
-    Returns the capacity.csv DataFrame for a scenario (one row per
-    resource_id with its net built `capacity`), or None if not found.
-    """
+
     results_dir = os.path.join(macro_base_dir, macro_scenario_paths[label])
     capacity_csv_path = os.path.join(results_dir, "capacity.csv")
     if not os.path.exists(capacity_csv_path):
@@ -69,13 +60,7 @@ def load_scenario_capacity(label):
 
 
 def get_dual_value(duals_df, xlsx_col, zone):
-    """
-    Look up the dual for one xlsx column ("elec_demand ($/MWh)", etc.) in
-    one zone. Most balances are zoned (e.g. "elec_CA"); some have no zone
-    breakdown and instead post a single national dual (e.g.
-    "gasoline_global", "ethylene_demand_global") that applies regardless
-    of zone. Returns None if neither variant exists in duals_df.
-    """
+
     csv_prefix = DUAL_COLUMN_MAP.get(xlsx_col)
     if csv_prefix is None:
         return None
