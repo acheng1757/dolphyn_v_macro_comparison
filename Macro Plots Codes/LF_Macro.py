@@ -36,6 +36,7 @@ macro_conversion_factor = 3.6e-9
 
 desired_order = [
     "Demand",
+    "Gasoline Blending",
     "Non-Served Demand",
     "Bio MeOH - Gasoline Non CCS",
     "Bio MeOH - Gasoline Mid CCS",
@@ -56,6 +57,7 @@ desired_order = [
 
 category_colors = {
     "Demand": "bisque",
+    "Gasoline Blending": "steelblue",
     "Bio MeOH - Gasoline Non CCS": "lightblue",
     "Bio MeOH - Gasoline Mid CCS": "cornflowerblue",
     "Bio MeOH - Gasoline High CCS": "royalblue",
@@ -76,6 +78,7 @@ category_colors = {
 
 label_map = {
     "Demand": "Demand",
+    "Gasoline Blending": "Gasoline Blending",
     "Bio MeOH - Gasoline Non CCS": "Bio-MTG",
     "Bio MeOH - Gasoline Mid CCS": "Bio-MTG CC31",
     "Bio MeOH - Gasoline High CCS": "Bio-MTG CC99",
@@ -159,6 +162,12 @@ def map_macro_lf_category(row):
 
     # Demand rows
     if sector == "Demand" or "demand" in text:
+        # Gasoline_MW_Global is now the post-blending demand node — the
+        # pre-blending gasoline requirement is captured separately by the
+        # "Gasoline Blending" category below, sourced from the blending
+        # asset's gasoline_edge. Counting both here would double count.
+        if edge == "Gasoline_MW_Global":
+            return None
         return "Demand"
 
     # Synthetic liquid fuels
@@ -346,6 +355,42 @@ for scen_short, scen_path in macro_scenario_paths.items():
             macro_combined_data[cat] = 0.0
         if scen_short in macro_combined_data.index:
             macro_combined_data.loc[scen_short, cat] = raw_flow * macro_conversion_factor
+
+
+# ---------------------------------------------------------------------
+# Add Gasoline Blending demand (gasoline inflow into the blending asset)
+# ---------------------------------------------------------------------
+# Gasoline_MW_Global (excluded from "Demand" above) is now the post-blend
+# demand node. The actual requirement LF/gasoline producers must supply is
+# the flow into Global_Gasoline_Blending's gasoline_edge — the inflow, not
+# the gasoline_blend_edge outflow. This edge isn't classified by Step 1
+# (Sector/Category = NA), so we pull it directly from the all_nonzero file.
+
+def _load_gasoline_blending_gasoline_demand(results_dir):
+    """Return the annual gasoline inflow (MWh) into Global_Gasoline_Blending's gasoline_edge."""
+    path = os.path.join(
+        results_dir,
+        "annual_flow_results",
+        "all_nonzero_annual_flows_with_categories.csv",
+    )
+    if not os.path.exists(path):
+        return 0.0
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+    if "Edge" not in df.columns or "Annual_Flow" not in df.columns:
+        return 0.0
+    flows = pd.to_numeric(df["Annual_Flow"], errors="coerce").fillna(0.0)
+    mask = df["Edge"] == "Global_Gasoline_Blending_gasoline_edge"
+    return flows[mask].sum()
+
+
+for scen_short, scen_path in macro_scenario_paths.items():
+    results_dir = os.path.join(macro_base_dir, scen_path)
+    blending_gasoline_flow = _load_gasoline_blending_gasoline_demand(results_dir)
+    if "Gasoline Blending" not in macro_combined_data.columns:
+        macro_combined_data["Gasoline Blending"] = 0.0
+    if scen_short in macro_combined_data.index:
+        macro_combined_data.loc[scen_short, "Gasoline Blending"] = blending_gasoline_flow * macro_conversion_factor
 
 
 # ---------------------------------------------------------------------

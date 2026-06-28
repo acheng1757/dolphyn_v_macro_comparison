@@ -32,6 +32,7 @@ MWH_TO_EJ = 3.6e-9  # 1 MWh = 3.6e9 J; 1 EJ = 1e18 J
 
 desired_order = [
     "Ethanol Demand",
+    "Gasoline Blending",
     "Non-Served Demand",
     "DryMill_Existing_Non_CCS",
     "DryMill_CCS_Fermentation_RETROFIT",
@@ -63,6 +64,7 @@ category_colors = {
     "Ethanol to JetFuel":        "chocolate",
     "Ethanol to Gasoline Diesel": "limegreen",
     "Ethanol Demand":           "bisque",
+    "Gasoline Blending":        "bisque",
     "Non-Served Demand":        "red",
 }
 
@@ -82,6 +84,7 @@ category_hatch = {
     "Ethanol to JetFuel":        "",
     "Ethanol to Gasoline Diesel": "",
     "Ethanol Demand":            "",
+    "Gasoline Blending":         "",
     "Non-Served Demand":         "",
 }
 
@@ -100,6 +103,7 @@ label_map = {
     "Ethanol to JetFuel":        "Eth. Upgrading (JetFuel)",
     "Ethanol to Gasoline Diesel": "Eth. Upgrading (Gasoline+Diesel)",
     "Ethanol Demand":            "Ethanol Demand",
+    "Gasoline Blending":         "Gasoline Blending",
     "Non-Served Demand":         "Non-Served Demand",
 }
 
@@ -241,6 +245,41 @@ for scen_short, scen_path in macro_scenario_paths.items():
             macro_combined_data[cat] = 0.0
         if scen_short in macro_combined_data.index:
             macro_combined_data.loc[scen_short, cat] = raw_flow * MWH_TO_EJ
+
+
+# ---------------------------------------------------------------------
+# Add Gasoline Blending ethanol demand
+# ---------------------------------------------------------------------
+# Ethanol no longer has its own demand.csv column — ethanol demand is now
+# measured by the flow into Global_Gasoline_Blending's ethanol_edge. This
+# edge isn't classified by Step 1 (Sector/Category = NA), so we pull it
+# directly from the all_nonzero file, same as the Ethanol_to_X processes above.
+
+def _load_gasoline_blending_ethanol_demand(results_dir):
+    """Return the annual ethanol flow (MWh) into Global_Gasoline_Blending's ethanol_edge."""
+    path = os.path.join(
+        results_dir,
+        "annual_flow_results",
+        "all_nonzero_annual_flows_with_categories.csv",
+    )
+    if not os.path.exists(path):
+        return 0.0
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+    if "Edge" not in df.columns or "Annual_Flow" not in df.columns:
+        return 0.0
+    flows = pd.to_numeric(df["Annual_Flow"], errors="coerce").fillna(0.0)
+    mask = df["Edge"] == "Global_Gasoline_Blending_ethanol_edge"
+    return flows[mask].sum()
+
+
+for scen_short, scen_path in macro_scenario_paths.items():
+    results_dir = os.path.join(macro_base_dir, scen_path)
+    blending_ethanol_flow = _load_gasoline_blending_ethanol_demand(results_dir)
+    if "Gasoline Blending" not in macro_combined_data.columns:
+        macro_combined_data["Gasoline Blending"] = 0.0
+    if scen_short in macro_combined_data.index:
+        macro_combined_data.loc[scen_short, "Gasoline Blending"] = blending_ethanol_flow * MWH_TO_EJ
 
 
 # ---------------------------------------------------------------------

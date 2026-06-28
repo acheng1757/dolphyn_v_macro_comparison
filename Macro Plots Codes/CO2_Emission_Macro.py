@@ -294,24 +294,6 @@ def read_ethanol_emission_rate(json_path):
     raise ValueError(f"Could not find emission_rate in {json_path}")
 
 
-def map_macro_ethanol_source(row):
-    """
-    Map ethanol balance demand rows to source categories for end-use emissions.
-
-    Only the direct end-use demand (Demand sector) is used; production
-    supply rows and upgrading consumption rows are excluded.  The model
-    does not emit a separate CO2 edge for direct ethanol combustion
-    (biogenic carbon-neutral treatment), so this reconstruction is kept
-    strictly to the demand volume × emission rate.
-    """
-    sector = str(row.get("Sector", "")).strip()
-
-    if sector == "Demand":
-        return "Ethanol Combustion"
-
-    return None
-
-
 def map_macro_liquid_fuel_source(row):
     """
     Map liquid fuels balance rows to source categories for end-use emissions.
@@ -339,8 +321,8 @@ def map_macro_liquid_fuel_source(row):
     # Ethanol_to_X upgrading assets sit in the Transmission sector;
     # Step 1 now assigns them Gasoline/Diesel/Jetfuel Balances so they
     # land in the Liquid_Fuels file — attribute their combustion here.
-    if sector == "Transmission":
-        return "Ethanol LF Combustion"
+    #if sector == "Transmission":
+    #    return "Ethanol LF Combustion"
 
     return None
 
@@ -761,15 +743,14 @@ for scen_short, scen_path in macro_scenario_paths.items():
     # 4. Reconstruct ethanol end-use emissions
     # -------------------------------------------------------------
 
-    macro_ethanol_path = os.path.join(
+    all_nonzero_path = os.path.join(
         macro_base_dir,
         scen_path,
         "annual_flow_results",
-        "balance_specific_flows",
-        "annual_flows_balance_Ethanol.csv",
+        "all_nonzero_annual_flows_with_categories.csv",
     )
 
-    if os.path.exists(macro_ethanol_path):
+    if os.path.exists(all_nonzero_path):
         try:
             ethanol_json_path = find_macro_asset_path(scen_short, "ethanol_end_use.json")
         except FileNotFoundError:
@@ -777,46 +758,34 @@ for scen_short, scen_path in macro_scenario_paths.items():
         else:
             ethanol_emission_rate = read_ethanol_emission_rate(ethanol_json_path)
 
-            macro_eth = pd.read_csv(macro_ethanol_path)
-            macro_eth.columns = macro_eth.columns.str.strip()
+            all_nonzero = pd.read_csv(all_nonzero_path)
+            all_nonzero.columns = all_nonzero.columns.str.strip()
 
-            missing_cols = [c for c in required_cols if c not in macro_eth.columns]
-            if missing_cols:
-                raise ValueError(
-                    f"{macro_ethanol_path} is missing required columns: {missing_cols}. "
-                    f"Available columns are: {macro_eth.columns.tolist()}"
-                )
+            # Ethanol no longer has its own demand.csv entry — all of it is
+            # combusted as part of the blended gasoline it feeds into, so the
+            # ethanol_edge inflow to Global_Gasoline_Blending is the combustion volume.
+            blending_ethanol_flow = pd.to_numeric(
+                all_nonzero.loc[
+                    all_nonzero["Edge"] == "Global_Gasoline_Blending_ethanol_edge",
+                    "Annual_Flow",
+                ],
+                errors="coerce",
+            ).fillna(0.0).sum()
 
-            macro_eth["Annual_Flow"] = (
-                pd.to_numeric(macro_eth["Annual_Flow"], errors="coerce").fillna(0.0)
+            ethanol_combustion_mt = (
+                abs(blending_ethanol_flow) * ethanol_emission_rate * TONNE_TO_MT
             )
 
-            macro_eth["Plot_Category"] = macro_eth.apply(map_macro_ethanol_source, axis=1)
-            macro_eth = macro_eth[macro_eth["Plot_Category"].notna()].copy()
+            ethanol_emission_by_scen[scen_short] = ethanol_combustion_mt
 
-            macro_eth["End_Use_Emission_Mt"] = (
-                macro_eth["Annual_Flow"].abs()
-                * ethanol_emission_rate
-                * TONNE_TO_MT
+            macro_rows.append(
+                {
+                    "Scenario": scen_short,
+                    "Plot_Category": "Ethanol Combustion",
+                    "Value": ethanol_combustion_mt,
+                    "Source": "Reconstructed ethanol end use (gasoline blending inflow)",
+                }
             )
-
-            eth_emissions = (
-                macro_eth
-                .groupby("Plot_Category")["End_Use_Emission_Mt"]
-                .sum()
-            )
-
-            ethanol_emission_by_scen[scen_short] = float(eth_emissions.sum())
-
-            for category, value in eth_emissions.items():
-                macro_rows.append(
-                    {
-                        "Scenario": scen_short,
-                        "Plot_Category": category,
-                        "Value": value,
-                        "Source": "Reconstructed ethanol end use",
-                    }
-                )
 
 
 macro_emissions_long = pd.DataFrame(macro_rows)
@@ -950,6 +919,17 @@ fig_plotly.update_layout(
 # Combustion emission checker: expected (demand × rate × 8760) vs plotted
 # ---------------------------------------------------------------------------
 
+# Ethanol has no demand.csv column anymore (it's measured via the gasoline
+# blending asset's ethanol_edge instead), so there's no independent
+# demand.csv-based expectation to check it against — excluded here.
+col_prefixes = {
+    "gasoline":   "gasoline_mw_",
+    "jetfuel":    "jetfuel_mw_",
+    "diesel":     "diesel_mw_",
+    "naturalgas": "naturalgas_mw_",
+}
+
+
 def compute_expected_combustion(demand_path):
     """
     Expected annual combustion emissions (Mt CO2) using the first time-step
@@ -960,14 +940,6 @@ def compute_expected_combustion(demand_path):
     demand = pd.read_csv(demand_path)
     demand.columns = demand.columns.str.strip()
     row = demand.sort_values("Time_Index").iloc[0]
-
-    col_prefixes = {
-        "gasoline":   "gasoline_mw_",
-        "jetfuel":    "jetfuel_mw_",
-        "diesel":     "diesel_mw_",
-        "ethanol":    "ethanol_mw",
-        "naturalgas": "naturalgas_mw_",
-    }
 
     result = {}
     for commodity, prefix in col_prefixes.items():
@@ -1003,10 +975,9 @@ for scen_short in macro_scenario_paths:
         "jetfuel":    lf_actual.get("JetFuel", 0.0),
         "diesel":     lf_actual.get("Diesel", 0.0),
         "naturalgas": ng_total_emission_by_scen.get(scen_short, 0.0),
-        "ethanol":    ethanol_emission_by_scen.get(scen_short, 0.0),
     }
 
-    for commodity in carbon_end_use_dict:
+    for commodity in col_prefixes:
         exp_mt = expected.get(commodity, {}).get("expected_mt", 0.0)
         dem_mw = expected.get(commodity, {}).get("demand_mw", 0.0)
         plt_mt = plotted.get(commodity, 0.0)

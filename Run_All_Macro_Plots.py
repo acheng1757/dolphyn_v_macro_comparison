@@ -39,6 +39,7 @@ SCRIPT_FILES = [
     "ETHYLENE_Macro_byZone.py",
     "ETHANOL_Macro.py",
     "ETHANOL_Macro_byZone.py",
+    "GASOLINE_BLENDING_Macro.py",
 ]
 
 GRID_COLS = 4

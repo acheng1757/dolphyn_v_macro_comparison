@@ -7,8 +7,7 @@ dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn
 dolphyn_results_folder = "Results_1"
 
 _scenarios = [
-    ("1", "6_23_CLEAR_SCENARIOS/1_teste10/results_001/results", "system"),
-    ("2", "6_23_CLEAR_SCENARIOS/1_teste10/results_002/results", "system"),
+    ("4", "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_001/results", "system"),
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios
@@ -425,6 +424,9 @@ sector_definitions = {
         ]),
         ("Ethanol End Use", [
             r"_ethanol_end_use",
+        ]),
+        ("Gasoline Blending", [
+            r"_Global_Gasoline_Blending",
         ]),
     ],
 },
@@ -1470,6 +1472,12 @@ def add_balance_labels(df):
         edge_lower.str.contains("h2_consumption_edge", na=False)
     )
     df.loc[is_ethanol_h2, "Balance"] = "H2"
+
+    #is_ethanol_gasoline_blending = (
+    #    is_ethanol &
+    #    edge_lower.str.contains("gasoline_blending_ethanol_edge", na=False)
+    #)
+    #df.loc[is_ethanol_gasoline_blending, "Balance"] = "Ethanol"
 
     return df
 
