@@ -14,7 +14,7 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, macro_
 SOURCE_SPECS = [
     ("bio_ethylene_lcoe",    "LCOE_BIO_ETHYLENE_", "Q"),
     ("sc_esc_ethylene_lcoe", "LCOE_SC_ESC_",       "M"),
-    ("synthetic_ethylene",   "LCOE_SYNTHETIC_",    "L"),
+    #("synthetic_ethylene",   "LCOE_SYNTHETIC_",    "L"),
 ]
 
 HEADER_ROW = 1  # 0-indexed -> Excel row 2 (row 1 is a title row)

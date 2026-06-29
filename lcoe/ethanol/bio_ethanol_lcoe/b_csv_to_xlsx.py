@@ -4,7 +4,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SCRIPT_DIR)))
 sys.path.append(REPO_ROOT)
 from Step_1_Process_Macro_Flows_and_Balance_Demand import scenario_names
 

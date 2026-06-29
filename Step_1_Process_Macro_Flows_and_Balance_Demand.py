@@ -9,6 +9,7 @@ dolphyn_results_folder = "Results_1"
 _scenarios = [
     ("1", "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_001/results", "system"),
     ("2", "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_002/results", "system"),
+    ("3", "6_23_CLEAR_SCENARIOS/5/results_001/results", "system"),
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios

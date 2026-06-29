@@ -19,17 +19,17 @@ COMPONENT_COLORS = {
     # Feedstock consumption — green family
     "h2_consumption":                "#00c853",
     "elec_consumption":              "#43a047",
-    "elec_consumption - ethanol":    "#43a047",
+    "elec_consumption - ethanol prod.":    "#43a047",
     "biomass_consumption":           "#2e7d32",
-    "biomass_consumption - ethanol": "#2e7d32",
+    "biomass_consumption - ethanol prod.": "#2e7d32",
     "natgas_consumption":            "#76d275",
-    "natgas_consumption - ethanol":  "#76d275",
+    "natgas_consumption - ethanol prod.":  "#76d275",
     "ethane_consumption":            "#1b5e20",
     "co2captured_consumption":       "#69f0ae",
 
     # Byproduct production / credits — vivid, non-green family
     "elec_production":               "#ffd600",
-    "elec_production - ethanol":     "#ffd600",
+    "elec_production - ethanol prod.":     "#ffd600",
     "h2_production":                 "#40c4ff",
     "natgas_production":             "#ff6e40",
     "gasoline_production":           "#ff9100",
@@ -40,11 +40,11 @@ COMPONENT_COLORS = {
 
     # CapEx / OpEx — vivid indigo (capital -> dark, fixed -> medium, variable -> light)
     "investment_cost":               "#3949ab",
-    "investment_cost - ethanol":     "#3949ab",
+    "investment_cost - ethanol prod.":     "#3949ab",
     "fixed_om_cost":                 "#5c6bc0",
-    "fixed_om_cost - ethanol":       "#5c6bc0",
+    "fixed_om_cost - ethanol prod.":       "#5c6bc0",
     "variable_om_cost":              "#9fa8da",
-    "variable_om_cost - ethanol":    "#9fa8da",
+    "variable_om_cost - ethanol prod.":    "#9fa8da",
 }
 FALLBACK_COLOR = "#888888"
 
