@@ -7,6 +7,17 @@ import plotly.graph_objects as go
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Mirrors macro_base_dir / macro_scenario_paths from
+# Step_1_Process_Macro_Flows_and_Balance_Demand.py. Duplicated here (rather than
+# imported) because that module runs its full MACRO processing pipeline as a
+# side effect of import — too slow for a plot script that's re-run often.
+MACRO_BASE_DIR = "/Users/abbie/MacroEnergyExamples.jl/macro"
+MACRO_SCENARIO_PATHS = {
+    "1": "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_001/results",
+    "2": "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_002/results",
+    "3": "6_23_CLEAR_SCENARIOS/5/results_001/results",
+}
+
 ID_COL = "id_LC"
 TOTAL_COL = "LCOE ($/MWh-fuel)"
 CASE_FILE_SUFFIX = "_lf_combined.csv"
@@ -42,6 +53,9 @@ COMPONENT_COLORS = {
     "fixed_om_cost - ethanol prod.":       "#5c6bc0",
     "variable_om_cost:              "#9fa8da",
     "variable_om_cost - ethanol prod.":    "#9fa8da",
+
+    # Manually-provided fossil benchmark cost — brown, distinct from model components
+    "fossil_fuel_cost":              "#5d4037",
 }
 FALLBACK_COLOR = "#888888"
 
@@ -53,16 +67,57 @@ DEMAND_DUAL_COLORS = {
 }
 DEFAULT_MARKER_COLOR = "black"
 
+FOSSIL_FUEL_COST = {
+    "fossil_gasoline": 69.57358456,
+    "fossil_diesel":   92.81027464,
+    "fossil_jetfuel":  70.56310587,
+}
+FOSSIL_CO2_CONTENT = {  # t-CO2/MWh-fuel
+    "fossil_gasoline": 0.243968185,
+    "fossil_diesel":   0.249427613,
+    "fossil_jetfuel":  0.246356685,
+}
+
+
+def get_co2_sink_dual(label):
+    """Returns the case's co2_sink shadow price ($/t-CO2) from co2_cap_duals.csv."""
+    scenario_path = MACRO_SCENARIO_PATHS.get(label)
+    if scenario_path is None:
+        return None
+
+    co2_duals_path = os.path.join(MACRO_BASE_DIR, scenario_path, "co2_cap_duals.csv")
+    if not os.path.exists(co2_duals_path):
+        return None
+
+    co2_df = pd.read_csv(co2_duals_path)
+    co2_sink_value = co2_df.loc[co2_df["Node"] == "co2_sink", "CO2_Shadow_Price"].values
+    return round(float(co2_sink_value[0]), 6) if len(co2_sink_value) > 0 else None
+
 
 def make_plot(csv_path):
     df = pd.read_csv(csv_path)
+    label = os.path.basename(csv_path).removesuffix(CASE_FILE_SUFFIX)
+
+    co2_sink = get_co2_sink_dual(label)
+    if co2_sink is None:
+        print(f"  WARNING: could not find co2_sink dual for case {label}; omitting fossil benchmarks")
+    else:
+        fossil_rows = []
+        for fossil_id, base_cost in FOSSIL_FUEL_COST.items():
+            emissions_cost = FOSSIL_CO2_CONTENT[fossil_id] * co2_sink
+            fossil_rows.append({
+                ID_COL: fossil_id,
+                "fossil_fuel_cost": base_cost,
+                "modified emissions cost": emissions_cost,
+                TOTAL_COL: base_cost + emissions_cost,
+            })
+        df = pd.concat([df, pd.DataFrame(fossil_rows)], ignore_index=True)
+        df = df.sort_values(TOTAL_COL, ascending=True, na_position="last").reset_index(drop=True)
 
     # Columns C:V (component cost/consumption columns): everything except the
     # source tracker, the id, and the total LCOE column.
     component_cols = [c for c in df.columns if c not in ("source_file", ID_COL, TOTAL_COL)]
     component_cols = [c for c in component_cols if df[c].notna().any()]
-
-    label = os.path.basename(csv_path).removesuffix(CASE_FILE_SUFFIX)
 
     fig = go.Figure()
 
@@ -94,12 +149,13 @@ def make_plot(csv_path):
         dual_rows = df[df[ID_COL] == dual_id]
         if dual_rows.empty:
             continue
+        color = DEMAND_DUAL_COLORS.get(dual_id, DEFAULT_MARKER_COLOR)
         fig.add_trace(go.Scatter(
             name=dual_id,
             x=dual_rows[ID_COL],
             y=dual_rows[TOTAL_COL],
             mode="markers",
-            marker=dict(color=DEMAND_DUAL_COLORS.get(dual_id, DEFAULT_MARKER_COLOR), size=10, symbol="diamond"),
+            marker=dict(color=color, size=10, symbol="diamond"),
             hovertemplate=f"{dual_id}: " + "%{y:.2f}<extra></extra>",
         ))
 

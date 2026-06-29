@@ -99,8 +99,8 @@ def map_macro_h2_category(row):
     if sector == "Ethylene":
         return "Ethylene Sector"
 
-    # Ethanol upgrading assets (Transmission sector) consume H2 for hydroprocessing
-    if sector == "Transmission":
+    # Ethanol upgrading assets consume H2 for hydroprocessing
+    if sector == "Ethanol Upgrading":
         return "Ethanol Upgrading"
 
     return None

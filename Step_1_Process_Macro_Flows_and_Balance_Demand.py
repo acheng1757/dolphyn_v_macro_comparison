@@ -7,9 +7,21 @@ dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn
 dolphyn_results_folder = "Results_1"
 
 _scenarios = [
-    ("1", "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_001/results", "system"),
-    ("2", "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_002/results", "system"),
-    ("3", "6_23_CLEAR_SCENARIOS/5/results_001/results", "system"),
+    ("1", "6_29_SCENARIODEMONSTRATION/1_ethanol/results_001/results", "system"),
+    ("2", "6_29_SCENARIODEMONSTRATION/2_ethanol/results_001/results", "system"),
+    ("3", "6_29_SCENARIODEMONSTRATION/3_ethanol/results_001/results", "system"),
+    ("4", "6_29_SCENARIODEMONSTRATION/4_ethanol/results_001/results", "system"),
+    ("5", "6_29_SCENARIODEMONSTRATION/5_lf/results_001/results", "system"),
+    ("5a", "6_29_SCENARIODEMONSTRATION/5a_lf/results_001/results", "system"),
+    ("5b", "6_29_SCENARIODEMONSTRATION/5b_lf/results_001/results", "system"),
+    ("6", "6_29_SCENARIODEMONSTRATION/6_ethylene/results_001/results", "system"),
+    ("6a", "6_29_SCENARIODEMONSTRATION/6a_ethylene/results_001/results", "system"),
+    #("6b", "6_29_SCENARIODEMONSTRATION/6b_ethylene/results_001/results", "system"),
+    #("6c", "6_29_SCENARIODEMONSTRATION/6c_ethylene/results_001/results", "system"),
+    #("6d", "6_29_SCENARIODEMONSTRATION/6d_ethylene/results_001/results", "system"),
+    #("6e", "6_29_SCENARIODEMONSTRATION/6e_ethylene/results_001/results", "system"),
+    #("6f", "6_29_SCENARIODEMONSTRATION/6f_ethylene/results_001/results", "system"),
+    #("6g", "6_29_SCENARIODEMONSTRATION/6g_ethylene/results_001/results", "system"),
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios
@@ -167,11 +179,21 @@ sector_definitions = {
                 r"global_jetfuel_1_use_co2",
                 r"global_jetfuel_1_use_fuel_edge",
             ]),
-            ("Ethanol Upgrade", [
-                r"Ethanol_to_Diesel",
-                r"Ethanol_to_Gasoline",
-                r"Ethanol_to_Jetfuel",
-            ]),        ],
+        ],
+    },
+
+    # Ethanol-upgrading plants get their own sector rather than being
+    # folded into "Transmission" (which is reserved for real zone-to-zone
+    # electricity/NG/H2 transfers) or "Liquid fuels" (whose category match
+    # would otherwise grab every edge of the plant, not just its fuel
+    # output). Must be checked before "Transmission" below, since that
+    # sector's catch-all r"_to_" pattern would otherwise match first.
+    "Ethanol Upgrading": {
+        "categories": [
+            ("Ethanol Upgrading", [
+                r"Ethanol_to_",
+            ]),
+        ],
     },
 
     "Transmission": {
@@ -1237,70 +1259,61 @@ def add_balance_labels(df):
     )
     df.loc[is_transmission_power, "Balance"] = "Power"
 
-    # Ethanol upgrading assets sit in the Transmission sector; assign their
-    # liquid-fuel output edges the correct LF Balance so they land in the
-    # Liquid_Fuels balance file and are picked up by the emissions pipeline.
-    # Diesel_JetFuel must be matched before plain Diesel to avoid overlap.
-    is_transmission_ethanol_to_gasoline = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_gasoline", na=False) &
-        edge_lower.str.contains("gasoline_production_edge", na=False)
-    )
-    df.loc[is_transmission_ethanol_to_gasoline, "Balance"] = "Gasoline"
+    # -----------------------------------------------------------------
+    # Ethanol Upgrading sector
+    # -----------------------------------------------------------------
+    # Assign Balance purely by edge suffix (not by asset-name substring)
+    # so every Ethanol_to_X variant — including combo plants like
+    # Ethanol_to_Gasoline_Diesel — is covered without enumerating each
+    # asset name individually.
 
-    is_transmission_ethanol_to_dj_diesel = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_diesel_jetfuel", na=False) &
-        edge_lower.str.contains("diesel_production_edge", na=False)
-    )
-    df.loc[is_transmission_ethanol_to_dj_diesel, "Balance"] = "Diesel"
+    is_ethanol_upgrading = sector_lower == "ethanol upgrading"
 
-    is_transmission_ethanol_to_dj_jetfuel = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_diesel_jetfuel", na=False) &
-        edge_lower.str.contains("jetfuel_production_edge", na=False)
-    )
-    df.loc[is_transmission_ethanol_to_dj_jetfuel, "Balance"] = "Jetfuel"
-
-    is_transmission_ethanol_to_diesel = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_diesel", na=False) &
-        (~edge_lower.str.contains("ethanol_to_diesel_jetfuel", na=False)) &
-        edge_lower.str.contains("diesel_production_edge", na=False)
-    )
-    df.loc[is_transmission_ethanol_to_diesel, "Balance"] = "Diesel"
-
-    is_transmission_ethanol_to_jetfuel = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_jetfuel", na=False) &
-        edge_lower.str.contains("jetfuel_production_edge", na=False)
-    )
-    df.loc[is_transmission_ethanol_to_jetfuel, "Balance"] = "Jetfuel"
-
-    is_transmission_ethanol_upgrade_h2 = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_", na=False) &
+    is_eth_upg_h2 = (
+        is_ethanol_upgrading &
         edge_lower.str.contains("h2_consumption_edge", na=False)
     )
-    df.loc[is_transmission_ethanol_upgrade_h2, "Balance"] = "H2"
-
-    is_transmission_ethanol_upgrade_elec = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_", na=False) &
-        (
-            edge_lower.str.contains("elec_production_edge", na=False) |
-            edge_lower.str.contains("elec_consumption_edge", na=False)
-        )
-    )
-    df.loc[is_transmission_ethanol_upgrade_elec, "Balance"] = "Power"
+    df.loc[is_eth_upg_h2, "Balance"] = "H2"
 
     # Ethanol consumed by upgrading plants (shows as negative in Ethanol balance)
-    is_transmission_ethanol_upgrade_eth = (
-        is_transmission &
-        edge_lower.str.contains("ethanol_to_", na=False) &
+    is_eth_upg_ethanol = (
+        is_ethanol_upgrading &
         edge_lower.str.contains("ethanol_consumption_edge", na=False)
     )
-    df.loc[is_transmission_ethanol_upgrade_eth, "Balance"] = "Ethanol"
+    df.loc[is_eth_upg_ethanol, "Balance"] = "Ethanol"
+
+    is_eth_upg_elec = (
+        is_ethanol_upgrading &
+        (
+            edge_lower.str.contains("elec_consumption_edge", na=False) |
+            edge_lower.str.contains("elec_production_edge", na=False)
+        )
+    )
+    df.loc[is_eth_upg_elec, "Balance"] = "Power"
+
+    is_eth_upg_co2 = (
+        is_ethanol_upgrading &
+        edge_lower.str.contains("co2_emission_edge", na=False)
+    )
+    df.loc[is_eth_upg_co2, "Balance"] = "CO2"
+
+    is_eth_upg_gasoline = (
+        is_ethanol_upgrading &
+        edge_lower.str.contains("gasoline_production_edge", na=False)
+    )
+    df.loc[is_eth_upg_gasoline, "Balance"] = "Gasoline"
+
+    is_eth_upg_diesel = (
+        is_ethanol_upgrading &
+        edge_lower.str.contains("diesel_production_edge", na=False)
+    )
+    df.loc[is_eth_upg_diesel, "Balance"] = "Diesel"
+
+    is_eth_upg_jetfuel = (
+        is_ethanol_upgrading &
+        edge_lower.str.contains("jetfuel_production_edge", na=False)
+    )
+    df.loc[is_eth_upg_jetfuel, "Balance"] = "Jetfuel"
 
     # -----------------------------------------------------------------
     # Ethylene sector

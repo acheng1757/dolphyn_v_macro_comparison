@@ -197,13 +197,13 @@ else:
 # ---------------------------------------------------------------------
 # Add Ethanol_to_X ethanol consumption split by process
 # ---------------------------------------------------------------------
-# Ethanol_to_X assets are tagged as "Transmission" in Step 1, so they
+# Ethanol_to_X assets are tagged as "Ethanol Upgrading" in Step 1, so they
 # are absent from the Ethanol balance file.  We pull their
 # ethanol_consumption_edge annual flows (already negative) directly from
 # the all_nonzero file, one category per process.
 
 _ETHANOL_UPGRADING_ASSETS = [
-    ("Ethanol to Gasoline",       "_Ethanol_to_Gasoline_",       None),
+    ("Ethanol to Gasoline",       "_Ethanol_to_Gasoline_",       "_Ethanol_to_Gasoline_Diesel_"),
     ("Ethanol to Gasoline Diesel", "_Ethanol_to_Gasoline_Diesel_", None),
     ("Ethanol to Diesel JetFuel", "_Ethanol_to_Diesel_JetFuel_", None),
     ("Ethanol to Diesel",         "_Ethanol_to_Diesel_",         "_Ethanol_to_Diesel_JetFuel_"),

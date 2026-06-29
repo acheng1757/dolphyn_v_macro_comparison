@@ -160,6 +160,9 @@ def map_macro_power_category(row):
 
         return "Synthetic FT"
 
+    if sector == "Ethanol Upgrading":
+        return "Ethanol Upgrading"
+
     return None
 
 

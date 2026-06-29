@@ -301,7 +301,7 @@ else:
 # ---------------------------------------------------------------------
 # Add Ethanol_to_X LF production split by process
 # ---------------------------------------------------------------------
-# Ethanol_to_X assets are tagged as "Transmission" in Step 1, so they
+# Ethanol_to_X assets are tagged as "Ethanol Upgrading" in Step 1, so they
 # are absent from the Liquid_Fuels balance file.  We pull their LF
 # output edges from the all_nonzero file, one category per process.
 # Diesel_JetFuel must be matched before plain Diesel to avoid overlap.
@@ -314,7 +314,7 @@ _LF_PROD_EDGES = (
 
 # (plot_category, asset_substring, exclude_substring_or_None)
 _ETHANOL_UPGRADING_ASSETS = [
-    ("Ethanol to Gasoline",      "_Ethanol_to_Gasoline_",      None),
+    ("Ethanol to Gasoline",      "_Ethanol_to_Gasoline_",      "_Ethanol_to_Gasoline_Diesel_"),
     ("Ethanol to Gasoline Diesel", "_Ethanol_to_Gasoline_Diesel_", None),
     ("Ethanol to Diesel",        "_Ethanol_to_Diesel_",       None),
     ("Ethanol to JetFuel",       "_Ethanol_to_JetFuel_",       None),

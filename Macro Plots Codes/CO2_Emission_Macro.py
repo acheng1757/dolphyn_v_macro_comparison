@@ -45,6 +45,7 @@ desired_order = [
     "Biofuels Combustion",
     "Ethylene and processes",
     "Ethanol and processes",
+    "Ethanol Upgrading Process",
     "Ethanol Combustion",
     "Ethanol to Gasoline Combustion",
     "Ethanol to Diesel Combustion",
@@ -69,6 +70,7 @@ category_colors = {
     "Biofuels Combustion": "#90c8a0",
     "Ethylene and processes": "#e8630a",
     "Ethanol and processes": "#d4a017",
+    "Ethanol Upgrading Process": "#8b6500",
     "Ethanol Combustion": "#f0cc6a",
     "Ethanol to Gasoline Combustion": "#c8b040",
     "Ethanol to Diesel Combustion": "#c8b040",
@@ -93,6 +95,7 @@ category_names = {
     "Biofuels Combustion": "Biofuels Combustion",
     "Ethylene and processes": "Ethylene",
     "Ethanol and processes": "Ethanol Process",
+    "Ethanol Upgrading Process": "Ethanol Upgrading Process",
     "Ethanol Combustion": "Ethanol Combustion",
     "Ethanol to Gasoline Combustion": "Ethanol to Gasoline Combustion",
     "Ethanol to Diesel Combustion": "Ethanol to Diesel Combustion",
@@ -270,6 +273,9 @@ def map_macro_direct_co2_category(row):
             return "Ethanol and processes"
         return None
 
+    if sector == "Ethanol Upgrading":
+        return "Ethanol Upgrading Process"
+
     return None
 
 
@@ -318,10 +324,10 @@ def map_macro_liquid_fuel_source(row):
     if sector == "Ethylene":
         return "Ethylene and processes"
 
-    # Ethanol_to_X upgrading assets sit in the Transmission sector;
+    # Ethanol_to_X upgrading assets sit in the Ethanol Upgrading sector;
     # Step 1 now assigns them Gasoline/Diesel/Jetfuel Balances so they
     # land in the Liquid_Fuels file — attribute their combustion here.
-    #if sector == "Transmission":
+    #if sector == "Ethanol Upgrading":
     #    return "Ethanol LF Combustion"
 
     return None

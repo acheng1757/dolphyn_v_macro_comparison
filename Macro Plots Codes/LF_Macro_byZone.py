@@ -37,6 +37,7 @@ desired_order = [
     "SFT CCS",
     "Ethylene Gasoline",
     "Ethanol to Gasoline",
+    "Ethanol to Gasoline Diesel",
     "Ethanol to Diesel",
     "Ethanol to JetFuel",
     "Ethanol to Diesel JetFuel",
@@ -54,6 +55,7 @@ category_colors = {
     "SFT CCS": "indigo",
     "Ethylene Gasoline": "#e8630a",
     "Ethanol to Gasoline":      "#ffd700",
+    "Ethanol to Gasoline Diesel": "#ffd700",
     "Ethanol to Diesel":        "#ffd700",
     "Ethanol to JetFuel":       "#ffd700",
     "Ethanol to Diesel JetFuel": "#ffd700",
@@ -71,6 +73,7 @@ label_map = {
     "SFT CCS": "Syn-FT (Jet) CC99",
     "Ethylene Gasoline": "Ethylene Gasoline",
     "Ethanol to Gasoline":      "Eth. Upgrading (Gasoline)",
+    "Ethanol to Gasoline Diesel": "Eth. Upgrading (Gasoline+Diesel)",
     "Ethanol to Diesel":        "Eth. Upgrading (Diesel)",
     "Ethanol to JetFuel":       "Eth. Upgrading (JetFuel)",
     "Ethanol to Diesel JetFuel": "Eth. Upgrading (Diesel+Jet)",
@@ -236,9 +239,9 @@ def map_macro_lf_category(row):
 # ---------------------------------------------------------------------
 # Ethanol-to-X production, by zone
 # ---------------------------------------------------------------------
-# Ethanol_to_X assets are tagged as "Transmission" in Step 1, so they are
-# absent from the Liquid_Fuels balance file. We pull their LF output edges
-# from the all_nonzero file, one category per process, grouped by zone.
+# Ethanol_to_X assets are tagged as "Ethanol Upgrading" in Step 1, so they
+# are absent from the Liquid_Fuels balance file. We pull their LF output
+# edges from the all_nonzero file, one category per process, grouped by zone.
 # Diesel_JetFuel must be matched before plain Diesel to avoid overlap.
 
 _LF_PROD_EDGES = (
@@ -248,7 +251,8 @@ _LF_PROD_EDGES = (
 )
 
 _ETHANOL_UPGRADING_ASSETS = [
-    ("Ethanol to Gasoline",      "_Ethanol_to_Gasoline_",      None),
+    ("Ethanol to Gasoline",      "_Ethanol_to_Gasoline_",      "_Ethanol_to_Gasoline_Diesel_"),
+    ("Ethanol to Gasoline Diesel", "_Ethanol_to_Gasoline_Diesel_", None),
     ("Ethanol to Diesel JetFuel", "_Ethanol_to_Diesel_JetFuel_", None),
     ("Ethanol to Diesel",        "_Ethanol_to_Diesel_",        "_Ethanol_to_Diesel_JetFuel_"),
     ("Ethanol to JetFuel",       "_Ethanol_to_JetFuel_",       None),

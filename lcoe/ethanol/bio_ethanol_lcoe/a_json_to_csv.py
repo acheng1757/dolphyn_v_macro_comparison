@@ -1,7 +1,9 @@
 import json
 import csv
+import glob
 import io
 import os
+import shutil
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -122,6 +124,24 @@ ASSET_FILES = [
 
 
 if __name__ == "__main__":
+    # Clear outputs from any previous run before regenerating — case folders
+    # created below, plus the downstream LCOE_BIOETHANOL_<case>.csv/.xlsx files
+    # produced by b_csv_to_xlsx.py / c_duals_to_xlsx.py. Cases come from
+    # scenario_names, which changes over time, so a case removed from there
+    # would otherwise leave its old outputs behind forever.
+    for entry in os.listdir(SCRIPT_DIR):
+        if entry == "__pycache__" or entry.startswith("."):
+            continue
+        entry_path = os.path.join(SCRIPT_DIR, entry)
+        if os.path.isdir(entry_path):
+            shutil.rmtree(entry_path)
+
+    for pattern in ("LCOE_BIOETHANOL_*.csv", "LCOE_BIOETHANOL_*.xlsx"):
+        for path in glob.glob(os.path.join(SCRIPT_DIR, pattern)):
+            if os.path.basename(path) == "LCOE_BIOETHANOL_TEMPLATE.xlsx":
+                continue
+            os.remove(path)
+
     for label in scenario_names:
         assets_dir = os.path.join(macro_base_dir, macro_input_paths[label], "assets")
         out_dir = os.path.join(SCRIPT_DIR, label)

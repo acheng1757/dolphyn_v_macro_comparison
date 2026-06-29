@@ -150,13 +150,13 @@ def map_macro_ethanol_category(row):
 # ---------------------------------------------------------------------
 # Ethanol-to-X upgrading consumption, by zone
 # ---------------------------------------------------------------------
-# Ethanol_to_X assets are tagged as "Transmission" in Step 1, so they
+# Ethanol_to_X assets are tagged as "Ethanol Upgrading" in Step 1, so they
 # are absent from the Ethanol balance file's Category column. We pull
 # their ethanol_consumption_edge annual flows (already negative) directly
 # from the all_nonzero file, one category per process, grouped by zone.
 
 _ETHANOL_UPGRADING_ASSETS = [
-    ("Ethanol to Gasoline",       "_Ethanol_to_Gasoline_",       None),
+    ("Ethanol to Gasoline",       "_Ethanol_to_Gasoline_",       "_Ethanol_to_Gasoline_Diesel_"),
     ("Ethanol to Gasoline Diesel", "_Ethanol_to_Gasoline_Diesel_", None),
     ("Ethanol to Diesel JetFuel", "_Ethanol_to_Diesel_JetFuel_", None),
     ("Ethanol to Diesel",         "_Ethanol_to_Diesel_",         "_Ethanol_to_Diesel_JetFuel_"),

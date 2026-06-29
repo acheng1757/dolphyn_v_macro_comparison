@@ -169,7 +169,7 @@ def map_macro_h2_category(row):
     if sector == "Ethylene":
         return "Ethylene Sector"
 
-    if sector == "Transmission":
+    if sector == "Ethanol Upgrading":
         return "Ethanol Upgrading"
 
     return None
