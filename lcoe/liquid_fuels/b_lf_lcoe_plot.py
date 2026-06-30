@@ -1,3 +1,4 @@
+import ast
 import os
 import glob
 import webbrowser
@@ -6,17 +7,44 @@ import pandas as pd
 import plotly.graph_objects as go
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+STEP_1_PATH = os.path.join(SCRIPT_DIR, "..", "..", "Step_1_Process_Macro_Flows_and_Balance_Demand.py")
 
-# Mirrors macro_base_dir / macro_scenario_paths from
-# Step_1_Process_Macro_Flows_and_Balance_Demand.py. Duplicated here (rather than
-# imported) because that module runs its full MACRO processing pipeline as a
-# side effect of import — too slow for a plot script that's re-run often.
-MACRO_BASE_DIR = "/Users/abbie/MacroEnergyExamples.jl/macro"
-MACRO_SCENARIO_PATHS = {
-    "1": "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_001/results",
-    "2": "6_27_FINAL_STRUCTURE/ethanol_upgrade/results_002/results",
-    "3": "6_23_CLEAR_SCENARIOS/5/results_001/results",
-}
+
+def _load_step1_scenario_config(step1_path):
+    """
+    Reads macro_base_dir/_scenarios straight out of Step_1's source via AST
+    (rather than importing it) because importing that module runs its full
+    MACRO processing pipeline as a side effect — too slow for a plot script
+    that's re-run often. Mirrors Step_1's own
+    `macro_scenario_paths = {label: path for label, path, _ in _scenarios}`,
+    so whichever scenarios are currently uncommented there are what show up
+    here automatically.
+    """
+    tree = ast.parse(open(step1_path).read(), filename=step1_path)
+
+    base_dir = None
+    scenarios = None
+    for node in tree.body:
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)):
+            continue
+        if node.targets[0].id == "macro_base_dir":
+            base_dir = ast.literal_eval(node.value)
+        elif node.targets[0].id == "_scenarios":
+            scenarios = ast.literal_eval(node.value)
+
+    if base_dir is None or scenarios is None:
+        raise RuntimeError(f"Could not find macro_base_dir/_scenarios in {step1_path}")
+
+    return base_dir, {label: path for label, path, _ in scenarios}
+
+
+MACRO_BASE_DIR, MACRO_SCENARIO_PATHS = _load_step1_scenario_config(STEP_1_PATH)
+
+MAX_TECHNOLOGIES = 50   # e.g. 40 -> keep only the 40 cheapest technologies
+MAX_LCOE = None          # e.g. 150 -> drop technologies with LCOE above 150 $/MWh-fuel
+
+ETHANOL_LABEL_COLOR = "gold"   # x-axis tick label color for any asset id containing "ethanol"
 
 ID_COL = "id_LC"
 TOTAL_COL = "LCOE ($/MWh-fuel)"
@@ -51,7 +79,7 @@ COMPONENT_COLORS = {
     "investment_cost - ethanol prod.":     "#3949ab",
     "fixed_om_cost":                 "#5c6bc0",
     "fixed_om_cost - ethanol prod.":       "#5c6bc0",
-    "variable_om_cost:              "#9fa8da",
+    "variable_om_cost":              "#9fa8da",
     "variable_om_cost - ethanol prod.":    "#9fa8da",
 
     # Manually-provided fossil benchmark cost — brown, distinct from model components
@@ -78,6 +106,46 @@ FOSSIL_CO2_CONTENT = {  # t-CO2/MWh-fuel
     "fossil_jetfuel":  0.246356685,
 }
 
+# Flags an x-axis label with a checkmark + bold bright-yellow highlight if
+# that asset actually shows up with non-negligible output in MACRO's own
+# annual_flows_balance_Liquid_Fuels.csv. Unlike the ethylene plot, ids here
+# match the balance edges directly (no Existing_/RETROFIT handling needed),
+# but a single asset can co-produce multiple fuels, so its edge name is
+# id_LC + one of several possible fuel-specific suffixes (e.g. Bioenergy
+# assets use "_diesel_edge"/"_jetfuel_edge"/"_gasoline_edge", Ethanol
+# Upgrading assets use "_diesel_production_edge"/"_gasoline_production_edge").
+# Suffixes are matched as an exact full-string set (not a startswith scan)
+# because some ids are themselves prefixes of other ids (e.g.
+# "NW_Ethanol_to_Gasoline" vs "NW_Ethanol_to_Gasoline_Diesel") and a prefix
+# scan would cross-attribute one asset's edges to the other.
+PRODUCTION_EDGE_SUFFIXES = (
+    "_gasoline_edge", "_diesel_edge", "_jetfuel_edge",
+    "_gasoline_production_edge", "_diesel_production_edge", "_jetfuel_production_edge",
+)
+PRODUCTION_FLOW_THRESHOLD = 1.0
+PRODUCTION_CHECKMARK = " ✓"
+PRODUCTION_HIGHLIGHT_STYLE = "color:#008000;font-weight:bold"
+
+
+def get_produced_edges(label):
+    """Returns the set of MACRO liquid-fuels production Edge names with non-negligible flow for this scenario."""
+    scenario_path = MACRO_SCENARIO_PATHS.get(label)
+    if scenario_path is None:
+        return set()
+
+    balance_path = os.path.join(
+        MACRO_BASE_DIR, scenario_path,
+        "annual_flow_results", "balance_specific_flows", "annual_flows_balance_Liquid_Fuels.csv",
+    )
+    if not os.path.exists(balance_path):
+        return set()
+
+    balance_df = pd.read_csv(balance_path)
+    balance_df.columns = balance_df.columns.str.strip()
+    return set(
+        balance_df.loc[balance_df["Annual_Flow"].abs() > PRODUCTION_FLOW_THRESHOLD, "Edge"]
+    )
+
 
 def get_co2_sink_dual(label):
     """Returns the case's co2_sink shadow price ($/t-CO2) from co2_cap_duals.csv."""
@@ -97,6 +165,7 @@ def get_co2_sink_dual(label):
 def make_plot(csv_path):
     df = pd.read_csv(csv_path)
     label = os.path.basename(csv_path).removesuffix(CASE_FILE_SUFFIX)
+    produced_edges = get_produced_edges(label)
 
     co2_sink = get_co2_sink_dual(label)
     if co2_sink is None:
@@ -113,6 +182,21 @@ def make_plot(csv_path):
             })
         df = pd.concat([df, pd.DataFrame(fossil_rows)], ignore_index=True)
         df = df.sort_values(TOTAL_COL, ascending=True, na_position="last").reset_index(drop=True)
+
+    exclude_ids = set(FOSSIL_FUEL_COST) | set(DEMAND_DUAL_IDS)
+    is_technology = ~df[ID_COL].isin(exclude_ids)
+
+    if MAX_LCOE is not None:
+        drop = is_technology & (df[TOTAL_COL] > MAX_LCOE)
+        df = df.loc[~drop].reset_index(drop=True)
+        is_technology = ~df[ID_COL].isin(exclude_ids)
+
+    if MAX_TECHNOLOGIES is not None:
+        tech_keep_ids = df.loc[is_technology].nsmallest(MAX_TECHNOLOGIES, TOTAL_COL)[ID_COL]
+        keep = ~is_technology | df[ID_COL].isin(tech_keep_ids)
+        df = df.loc[keep].reset_index(drop=True)
+
+    df = df.sort_values(TOTAL_COL, ascending=True, na_position="last").reset_index(drop=True)
 
     # Columns C:V (component cost/consumption columns): everything except the
     # source tracker, the id, and the total LCOE column.
@@ -159,12 +243,38 @@ def make_plot(csv_path):
             hovertemplate=f"{dual_id}: " + "%{y:.2f}<extra></extra>",
         ))
 
+    # Highlight ethanol-derived assets by recoloring their tick label text,
+    # and append a checkmark + bold bright-yellow highlight for assets with
+    # actual non-negligible MACRO production (via Plotly's pseudo-html span
+    # support) rather than altering the bars themselves, since the bars are
+    # already colored by cost component.
+    tick_text = []
+    for asset_id in df[ID_COL]:
+        display = asset_id
+        is_produced = any(
+            f"{asset_id}{suffix}" in produced_edges for suffix in PRODUCTION_EDGE_SUFFIXES
+        )
+        if is_produced:
+            display = f"{display}{PRODUCTION_CHECKMARK}"
+        if is_produced:
+            display = f'<span style="{PRODUCTION_HIGHLIGHT_STYLE}">{display}</span>'
+        elif "ethanol" in asset_id.lower():
+            display = f'<span style="color:{ETHANOL_LABEL_COLOR}">{display}</span>'
+        tick_text.append(display)
+
     fig.update_layout(
         barmode="relative",
         title=f"LF Levelized Cost Breakdown — Scenario {label}",
         xaxis_title="Asset",
         yaxis_title="$/MWh-fuel",
-        xaxis=dict(categoryorder="array", categoryarray=df[ID_COL].tolist(), tickangle=-45),
+        xaxis=dict(
+            categoryorder="array",
+            categoryarray=df[ID_COL].tolist(),
+            tickangle=-45,
+            tickmode="array",
+            tickvals=df[ID_COL].tolist(),
+            ticktext=tick_text,
+        ),
         legend=dict(orientation="v", x=1.02, y=1, xanchor="left"),
         height=650,
         margin=dict(b=160),

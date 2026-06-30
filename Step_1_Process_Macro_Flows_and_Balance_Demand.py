@@ -7,13 +7,15 @@ dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn
 dolphyn_results_folder = "Results_1"
 
 _scenarios = [
-    ("1", "6_29_SCENARIODEMONSTRATION/1_ethanol/results_001/results", "system"),
-    ("2", "6_29_SCENARIODEMONSTRATION/2_ethanol/results_001/results", "system"),
-    ("3", "6_29_SCENARIODEMONSTRATION/3_ethanol/results_001/results", "system"),
-    ("4", "6_29_SCENARIODEMONSTRATION/4_ethanol/results_001/results", "system"),
-    ("5", "6_29_SCENARIODEMONSTRATION/5_lf/results_001/results", "system"),
-    ("5a", "6_29_SCENARIODEMONSTRATION/5a_lf/results_001/results", "system"),
-    ("5b", "6_29_SCENARIODEMONSTRATION/5b_lf/results_001/results", "system"),
+    #("1", "6_29_SCENARIODEMONSTRATION/1_ethanol/results_001/results", "system"),
+    #("1a", "6_29_SCENARIODEMONSTRATION/1a_ethanol/results_001/results", "system"),
+    #("2", "6_29_SCENARIODEMONSTRATION/2_ethanol/results_001/results", "system"),
+    #("3", "6_29_SCENARIODEMONSTRATION/3_ethanol/results_001/results", "system"),
+   # ("4", "6_29_SCENARIODEMONSTRATION/4_ethanol/results_001/results", "system"),
+    #("5", "6_29_SCENARIODEMONSTRATION/5_lf/results_001/results", "system"),
+    #("5a", "6_29_SCENARIODEMONSTRATION/5a_lf/results_001/results", "system"),
+    #("5b", "6_29_SCENARIODEMONSTRATION/5b_lf/results_001/results", "system"),
+    #("5c", "6_29_SCENARIODEMONSTRATION/5c_lf/results_001/results", "system"),
     ("6", "6_29_SCENARIODEMONSTRATION/6_ethylene/results_001/results", "system"),
     ("6a", "6_29_SCENARIODEMONSTRATION/6a_ethylene/results_001/results", "system"),
     #("6b", "6_29_SCENARIODEMONSTRATION/6b_ethylene/results_001/results", "system"),
@@ -22,6 +24,10 @@ _scenarios = [
     #("6e", "6_29_SCENARIODEMONSTRATION/6e_ethylene/results_001/results", "system"),
     #("6f", "6_29_SCENARIODEMONSTRATION/6f_ethylene/results_001/results", "system"),
     #("6g", "6_29_SCENARIODEMONSTRATION/6g_ethylene/results_001/results", "system"),
+    #("7", "6_29_SCENARIODEMONSTRATION/7_ethylene/results_001/results", "system"),
+    #("7a", "6_29_SCENARIODEMONSTRATION/7a_ethylene/results_001/results", "system"),
+    ("8", "6_29_SCENARIODEMONSTRATION/8_noCC/results_001/results", "system"),
+    ("8a", "6_29_SCENARIODEMONSTRATION/8a_noCC/results_001/results", "system"),
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios

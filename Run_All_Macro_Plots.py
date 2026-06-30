@@ -301,6 +301,19 @@ if _s1 is not None:
                 marker_color=_pal[_i % len(_pal)],
                 hovertemplate='%{y}: %{x:.2f}<extra>Scen. ' + _scen + '</extra>',
             ))
+
+        # Clip x-axis at the 90th percentile so the scale shows where most
+        # duals cluster; outlier bars that exceed the cap extend to the right
+        # edge, visually suggesting their true values go further.
+        _all_dual_vals_flat = [
+            v for _d in _dual_by_scen.values() for v in _d.values()
+            if v is not None and v > 0
+        ]
+        _dual_x_cap = (
+            float(pd.Series(_all_dual_vals_flat).quantile(0.90)) * 1.1
+            if _all_dual_vals_flat else None
+        )
+
         _fig_duals.update_layout(
             barmode='group',
             title='Average Balance Duals by Commodity (penalty values ≥ 1e6 excluded)',
@@ -308,6 +321,8 @@ if _s1 is not None:
             legend=dict(orientation='v', x=1.02, y=1, xanchor='left'),
             height=max(500, 30 * len(_all_comms)),
         )
+        if _dual_x_cap is not None:
+            _fig_duals.update_xaxes(range=[0, _dual_x_cap])
         plotly_figs.append(_fig_duals)
         plotly_titles.append('Commodity Duals')
 
@@ -349,8 +364,22 @@ if _s1 is not None:
                     col=_col_pos,
                 )
 
+            # Clip y-axis at the 90th percentile across all zone-dual values
+            # for this scenario so outlier bars extend off the top of each
+            # subplot rather than compressing the majority of values.
+            _all_zonal_vals_flat = [
+                v for _zd in _scen_duals.values() for v in _zd.values()
+                if v is not None and v > 0
+            ]
+            _zonal_y_cap = (
+                float(pd.Series(_all_zonal_vals_flat).quantile(0.90)) * 1.1
+                if _all_zonal_vals_flat else None
+            )
+
             _fig_zonal.update_xaxes(tickangle=45, tickfont_size=9)
             _fig_zonal.update_yaxes(tickfont_size=9)
+            if _zonal_y_cap is not None:
+                _fig_zonal.update_yaxes(range=[0, _zonal_y_cap])
             _fig_zonal.update_layout(
                 title=f'Balance Duals by Zone — Scenario {_scen} (penalty values ≥ 1e6 excluded)',
                 height=max(700, 260 * _grid_rows),

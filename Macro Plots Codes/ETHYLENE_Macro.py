@@ -339,39 +339,48 @@ macro_combined_data = (
 print("\nMACRO ethylene balance by scenario (tonnes):")
 print(macro_combined_data)
 
-_crackers_json_path = os.path.join(
-    macro_base_dir,
-    macro_input_paths[scenario_names[0]],
-    "assets",
-    "existing_steam_crackers.json",
-)
+# Existing steam cracker capacity is one shared physical-infrastructure
+# fact, not scenario-specific — but not every scenario variant ships its
+# own existing_steam_crackers.json, so try each plotted scenario in turn
+# and use the first one that actually has the data, rather than failing
+# the reference line for the whole chart just because scenario_names[0]
+# happens to lack it.
+_t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
+_mwh_ethane_p_t_ethane = 14.41666667      # MWh-ethane/t-ethane (LHV)
 
 existing_cracker_cap = None
-try:
-    with open(_crackers_json_path) as _f:
-        _crackers = json.load(_f)
-
-    _total_cap_mwh_per_hr = sum(
-        inst["edges"]["ethane_consumption_edge"]["existing_capacity"]
-        for asset in _crackers["steamcracker_existing"]
-        for inst in asset["instance_data"]
+for _scen in scenario_names:
+    _crackers_json_path = os.path.join(
+        macro_base_dir,
+        macro_input_paths[_scen],
+        "assets",
+        "existing_steam_crackers.json",
     )
+    try:
+        with open(_crackers_json_path) as _f:
+            _crackers = json.load(_f)
 
-    # Existing steam cracker capacity: MWh-ethane/hr → t-ethylene/yr
-    _t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
-    _mwh_ethane_p_t_ethane = 14.41666667      # MWh-ethane/t-ethane (LHV)
+        _total_cap_mwh_per_hr = sum(
+            inst["edges"]["ethane_consumption_edge"]["existing_capacity"]
+            for asset in _crackers["steamcracker_existing"]
+            for inst in asset["instance_data"]
+        )
 
-    print(f"_total_cap_mwh_per_hr: {_total_cap_mwh_per_hr}")
-    print(f"_mwh_ethane_p_t_ethane: {_mwh_ethane_p_t_ethane}")
-    print(f"_t_ethane_p_t_ethylene: {_t_ethane_p_t_ethylene}")
+        print(f"_total_cap_mwh_per_hr: {_total_cap_mwh_per_hr}")
+        print(f"_mwh_ethane_p_t_ethane: {_mwh_ethane_p_t_ethane}")
+        print(f"_t_ethane_p_t_ethylene: {_t_ethane_p_t_ethylene}")
 
-    # MWh-ethane/hr ÷ (MWh/t-ethane) ÷ (t-ethane/t-ethylene) × 8760 hr/yr → t-ethylene/yr
-    existing_cracker_cap = (
-        _total_cap_mwh_per_hr / _mwh_ethane_p_t_ethane / _t_ethane_p_t_ethylene * 8760
-    )
-except Exception as exc:
-    print(f"Warning: could not load existing steam cracker capacity for {scenario_names[0]} "
-          f"from {_crackers_json_path}: {exc}")
+        # MWh-ethane/hr ÷ (MWh/t-ethane) ÷ (t-ethane/t-ethylene) × 8760 hr/yr → t-ethylene/yr
+        existing_cracker_cap = (
+            _total_cap_mwh_per_hr / _mwh_ethane_p_t_ethane / _t_ethane_p_t_ethylene * 8760
+        )
+        break
+    except Exception as exc:
+        print(f"Warning: could not load existing steam cracker capacity for {_scen} "
+              f"from {_crackers_json_path}: {exc}")
+
+if existing_cracker_cap is None:
+    print("Warning: no scenario had usable existing steam cracker capacity data; omitting reference lines.")
 
 
 # ---------------------------------------------------------------------

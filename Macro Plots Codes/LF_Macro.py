@@ -216,11 +216,20 @@ def map_macro_lf_category(row):
 
         return None
 
-    # Exclude crude-oil input edges (negative resource consumption, not liquid fuel supply)
-    if category == "Fossil Liquid Fuels":
+    # Exclude the upstream resource-consumption edge of the newer
+    # FossilFuelsUpstream asset structure. Each fuel's "*_fuel_edge" (the
+    # actual liquid-fuel supply, positive) is mirrored by a "*_fossil_fuel_edge"
+    # (the upstream resource it consumes, negative) — both share Category
+    # "Fossil Liquid Fuels", so excluding by edge suffix (rather than by
+    # category) is what lets the real supply edge fall through to the
+    # match below. The older ConstrainedFossilLiquidFuels asset has no
+    # such edge, so this never affects that structure.
+    if "fossil_fuel_edge" in edge_lower:
         return None
 
-    # Fossil liquid fuels
+    # Fossil liquid fuels — covers both the older "Fossil Petroleum
+    # Refinery" category and the newer "Fossil Liquid Fuels" /
+    # "*_Fossil_Upstream_*" naming.
     if (
         "fossil" in text
         or "petroleum" in text

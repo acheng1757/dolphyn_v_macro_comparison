@@ -52,9 +52,34 @@ DEMAND_DUAL_ID = "ethanol_demand_global"
 DEMAND_DUAL_COLOR = "red"
 DEFAULT_MARKER_COLOR = "black"
 
+# Optional caps on which regular-technology rows appear in the plot. Applied
+# only to technology rows — the demand dual (DEMAND_DUAL_ID) is always kept
+# regardless of these settings. Set either to None to disable that cap. If
+# both are set, MAX_LCOE filters first, then MAX_TECHNOLOGIES keeps the
+# cheapest of what's left. Aggressive cutoffs can make a cost-component
+# column vanish from the legend entirely if no remaining row uses it —
+# that's expected, not a bug.
+MAX_TECHNOLOGIES = None   # e.g. 40 -> keep only the 40 cheapest technologies
+MAX_LCOE = None           # e.g. 150 -> drop technologies with LCOE above 150 $/MWh-ethanol
+
 
 def make_plot(csv_path):
     df = pd.read_csv(csv_path)
+
+    exclude_ids = {DEMAND_DUAL_ID}
+    is_technology = ~df[ID_COL].isin(exclude_ids)
+
+    if MAX_LCOE is not None:
+        drop = is_technology & (df[TOTAL_COL] > MAX_LCOE)
+        df = df.loc[~drop].reset_index(drop=True)
+        is_technology = ~df[ID_COL].isin(exclude_ids)
+
+    if MAX_TECHNOLOGIES is not None:
+        tech_keep_ids = df.loc[is_technology].nsmallest(MAX_TECHNOLOGIES, TOTAL_COL)[ID_COL]
+        keep = ~is_technology | df[ID_COL].isin(tech_keep_ids)
+        df = df.loc[keep].reset_index(drop=True)
+
+    df = df.sort_values(TOTAL_COL, ascending=True, na_position="last").reset_index(drop=True)
 
     # Columns C:V (component cost/consumption columns): everything except the
     # source tracker, the id, and the total LCOE column.

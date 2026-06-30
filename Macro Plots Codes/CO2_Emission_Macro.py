@@ -312,13 +312,21 @@ def map_macro_liquid_fuel_source(row):
     if "_use_" in edge or category in ["Diesel Use", "Gasoline Use", "Jetfuel Use"]:
         return None
 
+    # Ignore the upstream resource-consumption edge of the newer
+    # FossilFuelsUpstream asset structure (mirrors each "*_fuel_edge" with
+    # the opposite sign; not itself liquid-fuel supply).
+    if "fossil_fuel_edge" in edge:
+        return None
+
     if sector == "Bioenergy":
         return "Biofuels Combustion"
 
     if sector == "Synthetic fuels":
         return "Synthetic Fuels Combustion"
 
-    if sector == "Liquid fuels" and category == "Fossil Petroleum Refinery":
+    # Covers both the older "Fossil Petroleum Refinery" category and the
+    # newer "Fossil Liquid Fuels" / "*_Fossil_Upstream_*" naming.
+    if sector == "Liquid fuels" and category in ("Fossil Petroleum Refinery", "Fossil Liquid Fuels"):
         return "Conventional Liquid Fuels"
 
     if sector == "Ethylene":
@@ -511,12 +519,14 @@ for scen_short, scen_path in macro_scenario_paths.items():
 
         # ── 2c. Ground-truth fossil supply, read directly from the
         # refinery's own output edges (Category == "Fossil Petroleum
-        # Refinery") instead of inferring fossil = demand − tracked
-        # non-fossil supply. The residual is still computed below, purely
-        # to validate that it agrees with the ground-truth edge value
-        # rather than assuming it does.
+        # Refinery", or the newer "Fossil Liquid Fuels" category minus its
+        # "*_fossil_fuel_edge" upstream-consumption rows) instead of
+        # inferring fossil = demand − tracked non-fossil supply. The
+        # residual is still computed below, purely to validate that it
+        # agrees with the ground-truth edge value rather than assuming it does.
         fossil_refinery_rows = macro_lf[
-            (macro_lf["Category"] == "Fossil Petroleum Refinery")
+            macro_lf["Category"].isin(["Fossil Petroleum Refinery", "Fossil Liquid Fuels"])
+            & ~macro_lf["Edge"].str.lower().str.contains("fossil_fuel_edge", na=False)
             & macro_lf["Fuel_Commodity"].notna()
         ]
         fossil_vol_by_fuel = (
