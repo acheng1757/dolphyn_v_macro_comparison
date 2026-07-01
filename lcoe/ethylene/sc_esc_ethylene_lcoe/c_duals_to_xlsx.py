@@ -26,6 +26,8 @@ DATA_START_ROW = 4
 
 
 def extract_zone(asset_id: str) -> str:
+    if asset_id.startswith("Existing_"):
+        asset_id = asset_id[len("Existing_"):]
     return asset_id.split("_")[0]
 
 

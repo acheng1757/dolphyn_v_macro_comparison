@@ -64,7 +64,7 @@ ETHANOL_LABEL_COLOR = "gold"   # x-axis tick label color for any asset id contai
 # threshold mirrors ETHYLENE_Macro.py's own noise cutoff for "active"
 # categories.
 PRODUCTION_EDGE_SUFFIX = "_ethylene_production_edge"
-PRODUCTION_FLOW_THRESHOLD = 100000.0
+PRODUCTION_FLOW_THRESHOLD = 10.0
 PRODUCTION_CHECKMARK = " ✓"
 # Bold bright yellow text, not a background highlight — Plotly's pseudo-html
 # forwards arbitrary CSS into the rendered SVG <tspan>, but SVG text has no
