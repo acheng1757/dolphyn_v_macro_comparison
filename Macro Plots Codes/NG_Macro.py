@@ -37,7 +37,8 @@ desired_order = [
     "H2",
     "CSC",
     "BESC",
-    "Ethylene",
+    "Ethylene Production",
+    "Ethylene Consumption",
     "Ethanol",
     "Syn_NG",
     "Conventional_NG",
@@ -51,7 +52,8 @@ category_colors = {
     "H2": "deepskyblue",
     "CSC": "darkblue",
     "BESC": "seagreen",
-    "Ethylene": "#e8630a",
+    "Ethylene Production": "#e8630a",
+    "Ethylene Consumption": "#7a2e0e",
     "Ethanol": "#d4a017",
     "Non-Served Demand": "red",
 }
@@ -64,7 +66,8 @@ category_names = {
     "H2": "H2 Sector",
     "CSC": "Solvent DAC",
     "BESC": "Bio NG",
-    "Ethylene": "Ethylene Sector",
+    "Ethylene Production": "Ethylene Sector (Production)",
+    "Ethylene Consumption": "Ethylene Sector (Consumption)",
     "Ethanol": "Ethanol Sector",
     "Non-Served Demand": "Non-Served Demand",
 }
@@ -115,7 +118,11 @@ def map_macro_ng_category(row):
         return "BESC"
 
     if sector == "Ethylene":
-        return "Ethylene"
+        try:
+            flow = float(row.get("Annual_Flow", 0.0))
+        except (TypeError, ValueError):
+            flow = 0.0
+        return "Ethylene Production" if flow >= 0 else "Ethylene Consumption"
 
     if sector == "Ethanol":
         return "Ethanol"

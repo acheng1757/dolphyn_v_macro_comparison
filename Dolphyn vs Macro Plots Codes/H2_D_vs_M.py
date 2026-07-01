@@ -15,21 +15,32 @@ plt.rcParams["font.family"] = "Arial"
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
     dolphyn_base_dir, macro_base_dir,
-    dolphyn_results_folder, scenario_names,
+    dolphyn_results_folder, load_annual_nsd,
 )
 
 MWH_TO_EJ = 3.6e-9
 conversion_factor = MWH_TO_EJ
-mwh_h2_p_t_h2 = 39.39
 mwh_h2_p_tonne_h2 = 39.39
 
+# Fully manual/self-contained: dolphyn_scenario_paths and
+# macro_scenario_paths are the source of truth for which scenarios this
+# script compares. scenario_names is derived from them directly rather
+# than imported from Step_1, so this script doesn't silently break or
+# go stale whenever Step_1's shared scenario config changes.
+
 dolphyn_scenario_paths = {
-    "1": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test/",
+    "1": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
+    "2": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
+    "3": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
 }
 
 macro_scenario_paths = {
-    "1": f"6_15_168_restart_all_demand/results_001/results",
+    "1": f"7_1_DOLPHYN_B2/results_001/results",
+    "2": f"7_1_DOLPHYN_B2/results_002/results",
+    "3": f"7_1_DOLPHYN_B2/results_003/results",
 }
+
+scenario_names = list(dolphyn_scenario_paths.keys())
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -325,7 +336,15 @@ def map_macro_h2_category(row):
         return None
 
     if sector == "Ethylene":
-        return "Ethylene Sector"
+        try:
+            flow = float(row.get("Annual_Flow", 0.0))
+        except (TypeError, ValueError):
+            flow = 0.0
+        return "Ethylene Sector Production" if flow >= 0 else "Ethylene Sector Consumption"
+
+    # Ethanol upgrading assets consume H2 for hydroprocessing
+    if sector == "Ethanol Upgrading":
+        return "Ethanol Upgrading"
 
     return None
 
@@ -488,9 +507,11 @@ syn_ng_df_combined, _ = read_scenario_csvs(
 ethylene_df_combined, _ = read_scenario_csvs(
     f'{dolphyn_results_folder}/Results_Ethylene/Ethylene_capacity.csv'
 )
-_eth_df = pd.read_csv(os.path.join(dolphyn_scenario_paths[scenario_names[0]], "Ethylene_Resources.csv"))
-_eth_df.columns = _eth_df.columns.str.strip()
-ethylene_process_dfs = {scenario_names[0]: _eth_df}
+ethylene_process_dfs = {}
+for _scen_short, _scen_folder in dolphyn_scenario_paths.items():
+    _eth_df = pd.read_csv(os.path.join(_scen_folder, "Ethylene_Resources.csv"))
+    _eth_df.columns = _eth_df.columns.str.strip()
+    ethylene_process_dfs[_scen_short] = _eth_df
 
 # ---------------------------------------------------------------------
 # Load Dolphyn process-parameter files
@@ -599,14 +620,14 @@ for scen_short, scen_folder in dolphyn_scenario_paths.items():
 eth_production_df = pd.DataFrame.from_dict(
     eth_h2_production_ej,
     orient="index",
-    columns=["Ethylene Sector"],
+    columns=["Steam Cracker Ethylene Prod"],
 )
 
 # ---------------------------------------------------------------------
 # Process Dolphyn Ethylene H2 consumption from new build assets
 # ---------------------------------------------------------------------
 
-ethylene_df_combined["Resource_Category"] = "Ethylene Sector"
+ethylene_df_combined["Resource_Category"] = "Steam Cracker Ethylene Consumption"
 
 ethylene_merged_combined = merge_scenario_process_data(
     result_df=ethylene_df_combined,
@@ -645,14 +666,19 @@ ethylene_aggregated_data = aggregate_by_scenario_category(
 # Process Dolphyn Ethylene H2 consumption from retrofit assets
 # ---------------------------------------------------------------------
 
-retrofit_df = load_ethylene_retrofit_balance(
-    csv_path=os.path.join(dolphyn_scenario_paths[scenario_names[0]], dolphyn_results_folder, "Results_Ethylene", "Ethylene_Retrofit_Balance.csv"),
-    assets=H2_ASSETS,
-    resource_mapping=RESOURCE_MAPPING,
-)
-retrofit_df = retrofit_df[retrofit_df["Time"] == "AnnualSum"].copy()
-retrofit_df["Scenario"] = scenario_names[0]
-retrofit_df["Resource_Category"] = "Ethylene Sector"
+_retrofit_dfs = []
+for _scen_short, _scen_folder in dolphyn_scenario_paths.items():
+    _scen_retrofit_df = load_ethylene_retrofit_balance(
+        csv_path=os.path.join(_scen_folder, dolphyn_results_folder, "Results_Ethylene", "Ethylene_Retrofit_Balance.csv"),
+        assets=H2_ASSETS,
+        resource_mapping=RESOURCE_MAPPING,
+    )
+    _scen_retrofit_df = _scen_retrofit_df[_scen_retrofit_df["Time"] == "AnnualSum"].copy()
+    _scen_retrofit_df["Scenario"] = _scen_short
+    _retrofit_dfs.append(_scen_retrofit_df)
+
+retrofit_df = pd.concat(_retrofit_dfs, ignore_index=True)
+retrofit_df["Resource_Category"] = "Steam Cracker Ethylene Consumption"
 
 # Merge on BOTH Resource and Zone so we pull the right zone-specific parameters
 ethylene_retrofit_merged_combined = merge_scenario_process_data_by_zone(
@@ -743,13 +769,18 @@ combined_data = pd.concat(
 combined_data = combined_data.T.groupby(level=0).sum().T
 
 desired_order = [
-    "Ethylene Sector",
+    "Steam Cracker Ethylene Prod",
     "Demand",
+    "Non-Served Demand",
     "Synthetic FT",
     "Synthetic NG",
+    "Ethylene Sector Production",
+    "Ethylene Sector Consumption",
+    "Ethanol Upgrading",
     "Electrolyzer",
     "NG CCS H2",
     "BECCS H2",
+    "Steam Cracker Ethylene Consumption",
 ]
 
 combined_data = combined_data.reindex(scenario_names).fillna(0.0)
@@ -828,6 +859,11 @@ for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
 
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        nsd = load_annual_nsd(scen_path, "h2_") * conversion_factor
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
+
 macro_combined_data = macro_combined_data[desired_order]
 
 
@@ -841,6 +877,22 @@ print(combined_data)
 print("\nMACRO H2 balance by scenario (EJ):")
 print(macro_combined_data)
 
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario (MACRO)
+# ---------------------------------------------------------------------
+print("Hydrogen balance check (MACRO):")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} EJ, "
+        f"Demand={total_negative:+.4f} EJ, "
+        f"Net={net:+.4f} EJ  [{status}]"
+    )
+
 
 # ---------------------------------------------------------------------
 # Plot settings
@@ -851,9 +903,14 @@ category_colors = {
     "NG CCS H2": "deepskyblue",
     "BECCS H2": "seagreen",
     "Synthetic FT": "purple",
-    "Synthetic NG": "violet",
-    "Ethylene Sector": "#e8630a",
+    "Synthetic NG": "#e8905a",
+    "Ethylene Sector Production": "#e8630a",
+    "Ethylene Sector Consumption": "#7a2e0e",
+    "Steam Cracker Ethylene Prod": "red",
+    "Steam Cracker Ethylene Consumption": "orange",
+    "Ethanol Upgrading": "#d4a017",
     "Demand": "bisque",
+    "Non-Served Demand": "red",
 }
 
 category_names = {
@@ -862,8 +919,13 @@ category_names = {
     "BECCS H2": "BECCS H2",
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",
-    "Ethylene Sector": "Ethylene Sector",
+    "Ethylene Sector Production": "Ethylene Sector (Production)",
+    "Ethylene Sector Consumption": "Ethylene Sector (Consumption)",
+    "Steam Cracker Ethylene Prod": "Steam Cracker Ethylene Prod",
+    "Steam Cracker Ethylene Consumption": "Steam Cracker Ethylene Consumption",
+    "Ethanol Upgrading": "Ethanol Upgrading",
     "Demand": "Demand",
+    "Non-Served Demand": "Non-Served Demand",
 }
 
 full_desired_order = desired_order.copy()

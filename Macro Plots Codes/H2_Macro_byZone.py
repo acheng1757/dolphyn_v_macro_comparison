@@ -28,7 +28,8 @@ desired_order = [
     "Demand",
     "Synthetic FT",
     "Synthetic NG",
-    "Ethylene Sector",
+    "Ethylene Sector Production",
+    "Ethylene Sector Consumption",
     "Ethanol Upgrading",
     "Electrolyzer",
     "NG CCS H2",
@@ -41,7 +42,8 @@ category_colors = {
     "BECCS H2": "seagreen",
     "Synthetic FT": "purple",
     "Synthetic NG": "#e8905a",
-    "Ethylene Sector": "#e8630a",
+    "Ethylene Sector Production": "#e8630a",
+    "Ethylene Sector Consumption": "#7a2e0e",
     "Ethanol Upgrading": "#d4a017",
     "Demand": "bisque",
 }
@@ -52,7 +54,8 @@ category_names = {
     "BECCS H2": "BECCS H2",
     "Synthetic FT": "Syn. Liquids",
     "Synthetic NG": "Syn. NG",
-    "Ethylene Sector": "Ethylene Sector",
+    "Ethylene Sector Production": "Ethylene Sector (Production)",
+    "Ethylene Sector Consumption": "Ethylene Sector (Consumption)",
     "Ethanol Upgrading": "Ethanol Upgrading",
     "Demand": "Demand",
 }
@@ -167,7 +170,11 @@ def map_macro_h2_category(row):
         return None
 
     if sector == "Ethylene":
-        return "Ethylene Sector"
+        try:
+            flow = float(row.get("Annual_Flow", 0.0))
+        except (TypeError, ValueError):
+            flow = 0.0
+        return "Ethylene Sector Production" if flow >= 0 else "Ethylene Sector Consumption"
 
     if sector == "Ethanol Upgrading":
         return "Ethanol Upgrading"

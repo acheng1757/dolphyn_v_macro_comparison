@@ -6,6 +6,7 @@ macro_base_dir = "/Users/abbie/MacroEnergyExamples.jl/macro"
 dolphyn_base_dir = "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn"
 dolphyn_results_folder = "Results_1"
 
+'''
 _scenarios = [
     #("1", "6_29_SCENARIODEMONSTRATION/1_ethanol/results_001/results", "system"),
     #("1a", "6_29_SCENARIODEMONSTRATION/1a_ethanol/results_001/results", "system"),
@@ -28,6 +29,14 @@ _scenarios = [
     #("7a", "6_29_SCENARIODEMONSTRATION/7a_ethylene/results_001/results", "system"),
     #("8", "6_29_SCENARIODEMONSTRATION/8_noCC/results_001/results", "system"),
     #("8a", "6_29_SCENARIODEMONSTRATION/8a_noCC/results_001/results", "system"),
+]
+'''
+
+_scenarios = [
+    ("1", "7_1_DOLPHYN_B2/results_001/results", "system"),
+    #("2", "7_1_DOLPHYN_B2/results_002/results", "system"),
+    #("3", "7_1_DOLPHYN_B2/results_003/results", "system"),
+    #("4", "7_1_DOLPHYN_B2/results_004/results", "system"),
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios

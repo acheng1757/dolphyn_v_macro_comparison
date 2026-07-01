@@ -13,7 +13,7 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, dolp
 
 
 # List of scenario file paths and scenario names
-file_paths = [f'{dolphyn_base_dir}/all_demand_test/{dolphyn_results_folder}/Results_CSC/Zone_CO2_emission_balance.csv']
+file_paths = [f'{dolphyn_base_dir}/ethylene_only_test/{dolphyn_results_folder}/Results_CSC/Zone_CO2_emission_balance.csv']
 
 # Columns of interest for summation
 columns_of_interest = ["Power Emissions", 

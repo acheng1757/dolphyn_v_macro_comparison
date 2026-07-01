@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import dolphyn_base_dir, dolphyn_results_folder, scenario_names
 
 # List of scenario file paths and scenario names
-file_paths = [f'{dolphyn_base_dir}/all_demand_test/{dolphyn_results_folder}/Results_NG/NG_Balance.csv']
+file_paths = [f'{dolphyn_base_dir}/ethylene_only_test/{dolphyn_results_folder}/Results_NG/NG_Balance.csv']
 
 # Columns of interest for summation
 columns_of_interest = ["Syn_NG", "Bio_NG", "Conventional_NG", "NG_Demand", "Power", "H2", "CSC", "BESC", "Ethylene Consumption", "Ethylene Production"]
@@ -22,7 +22,8 @@ category_colors = {
     "H2": "deepskyblue",
     "CSC": "darkblue",
     "BESC": "mediumseagreen",
-    "Ethylene": "red",
+    "Ethylene Production": "red",
+    "Ethylene Consumption": "darkred",
 }
 
 # Custom display names for each category
@@ -35,8 +36,8 @@ category_names = {
     "H2": "H2 Sector",
     "CSC": "Solvent DAC",
     "BESC": "Bio NG Prod.",
-    "Ethylene Consumption": "Ethylene",
-    "Ethylene Production": "Ethylene",
+    "Ethylene Consumption": "Ethylene (Consumption)",
+    "Ethylene Production": "Ethylene (Production)",
 }
 
 # Specify desired order for the columns
@@ -46,7 +47,8 @@ desired_order = [
     "H2",
     "CSC",
     "BESC",
-    "Ethylene",
+    "Ethylene Production",
+    "Ethylene Consumption",
     "Syn_NG",
     "Bio_NG",
     "Conventional_NG",

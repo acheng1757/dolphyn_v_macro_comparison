@@ -20,11 +20,13 @@ from Step_1_Process_Macro_Flows_and_Balance_Demand import (
 # Macro paths are relative to macro_base_dir.
 
 dolphyn_scenario_paths = {
-    "1": f'ethylene_only_test/{dolphyn_results_folder}',
+    "no_crossover": f'ethylene_only_test/{dolphyn_results_folder}',
+    "crossover": f'ethylene_only_test/{dolphyn_results_folder}',
 }
 
 macro_scenario_paths = {
-    "1": f"6_15_168_restart/results_102/results",
+    "no_crossover": f"7_1_DOLPHYN_B2/results_001/results",
+    "crossover": f"7_1_DOLPHYN_B2/results_002/results",
 }
 
 # ---------------------------------------------------------------------

@@ -18,7 +18,7 @@ conversion_factor = MWH_TO_EJ
 mwh_h2_p_tonne_h2 = 39.39
 
 dolphyn_scenario_paths = {
-    "ethylene_only_test": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/all_demand_test/",
+    "ethylene_only_test": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_testc/",
 }
 
 # is MS_MTO for ng or h2 in?
@@ -276,7 +276,7 @@ def compute_ethylene_h2_production_ej(scenario_dir):
     
     return total_tonnes * MWH_TO_EJ * mwh_h2_p_tonne_h2
 
-H2_ASSETS = ["TSC+H2in:CH4", "TSC+H2in","MS+MTO+CC90","Bio-eth+CC88:H2"]
+H2_ASSETS = ["TSC+H2in:CH4", "TSC+H2in","MS+MTO+CC90","Bio-eth+CC88:H2","TSC:H2"]
 
 # Maps CSV asset names → Ethylene_Resource keys in the process parameter files
 RESOURCE_MAPPING = {
@@ -284,6 +284,7 @@ RESOURCE_MAPPING = {
     "TSC+H2in":     "F-H2in",
     "MS+MTO+CC90":     "S-CC90-H2in",
     "Bio-eth+CC88:H2":     "B-H2in",
+    "TSC:H2":     "F-NGin-H2out"
 }
 
 def load_ethylene_retrofit_balance(

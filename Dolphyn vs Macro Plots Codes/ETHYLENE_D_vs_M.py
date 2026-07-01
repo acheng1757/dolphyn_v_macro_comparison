@@ -3,12 +3,12 @@
 
 import os
 import json
+import re
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import webbrowser
 import sys
-import re
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.max_rows", None)
@@ -18,20 +18,29 @@ plt.rcParams["font.family"] = "Arial"
 # ---------------------------------------------------------------------
 # Paths and scenarios
 # ---------------------------------------------------------------------
+# Fully manual/self-contained: dolphyn_scenario_paths and
+# macro_scenario_paths are the source of truth for which scenarios this
+# script compares. scenario_names is derived from them directly rather
+# than imported from Step_1, so this script doesn't silently break or
+# go stale whenever Step_1's shared scenario config changes.
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
     dolphyn_base_dir, macro_base_dir,
-    dolphyn_results_folder, scenario_names, macro_input_paths,
+    dolphyn_results_folder, load_annual_nsd,
 )
 
 dolphyn_scenario_paths = {
-    "1": f'ethylene_only_test/{dolphyn_results_folder}/Results_Ethylene',
+    "no_crossover": f'ethylene_only_test/{dolphyn_results_folder}/Results_Ethylene',
+    "crossover": f'ethylene_only_test/{dolphyn_results_folder}/Results_Ethylene',
 }
 
 macro_scenario_paths = {
-    "1": f"6_15_168_restart/results_023/results",
+    "no_crossover": f"7_1_DOLPHYN_B2/results_001/results",
+    "crossover": f"7_1_DOLPHYN_B2/results_002/results",
 }
+
+scenario_names = list(dolphyn_scenario_paths.keys())
 
 # Ethylene flows are already in tonnes — no conversion needed for either model.
 
@@ -42,7 +51,10 @@ macro_scenario_paths = {
 
 desired_order = [
     "Ethylene Demand",
+    "Non-Served Demand",
     "Existing TSC:H2",
+    "Existing Capacities",
+    "TSC:H2",
     "Ret-TSC:H2",
     "Ret-TSC",
     "Ret-TSC+CC90",
@@ -51,14 +63,13 @@ desired_order = [
     "Ret-TSC+CC90+H2in",
     "Ret-ESC",
     "Ret-TSC+H2in:CH4",
+    "TSC+H2in:CH4",
 
-    "TSC:H2",   
     "TSC",
     "TSC+CC90",
     "TSC+CC90:H2",
     "TSC+H2in",
     "TSC+CC90+H2in",
-    "TSC+H2in:CH4",
 
     "ESC",
 
@@ -98,9 +109,12 @@ category_colors = {
     "ESC":                  "#808080",
     "Ret-ESC":              "#808080",   # same as ESC
 
+    "Existing Capacities":  "#f5c518",   # same as TSC:H2 (existing thermal crackers)
+
     "Dehydration NGfuel":   "#57c46a",
     "Dehydration H2fuel":   "#1a6e30",
-    "Ethylene Demand":      "#5a6fa8",
+    "Ethylene Demand":      "bisque",
+    "Non-Served Demand":    "red",
 }
 
 # Pattern encodes build type: "" = new build, "//" = retrofit (Ret-), ".." = existing
@@ -124,9 +138,11 @@ category_hatch = {
     "Ret-TSC+CC90+H2in":    "//",
     "ESC":                  "",
     "Ret-ESC":              "//",
+    "Existing Capacities":  "..",
     "Dehydration NGfuel":   "",
     "Dehydration H2fuel":   "",
     "Ethylene Demand":      "",
+    "Non-Served Demand":    "",
 }
 
 label_map = {
@@ -159,9 +175,11 @@ label_map = {
     "Dehydration NGfuel":   "Dehydration NGfuel",
     "Dehydration H2fuel":   "Dehydration H2fuel",
     "Ethylene Demand":      "Ethylene Demand",
+    "Non-Served Demand":    "Non-Served Demand",
 
     "ESC":                  "ESC",
     "Ret-ESC":              "Ret-ESC", # confirm grouping
+    "Existing Capacities":  "Existing Capacities",
 }
 
 # ---------------------------------------------------------------------
@@ -183,7 +201,7 @@ RESOURCE_CATEGORY_MAP = {
     "TSC+H2in":            "TSC+H2in",
     "TSC+CC90+H2in":            "TSC+H2in:CH4",
     "ESC":            "ESC",
-    "Existing Capacities":            "Existing TSC:H2",
+    "Existing Capacities":            "Existing Capacities",
     "TSC+H2in:CH4":         "TSC+H2in:CH4",
     "TSC+H2in: CH4":         "TSC+H2in:CH4",
 }
@@ -358,125 +376,6 @@ else:
 # ---------------------------------------------------------------------
 # MACRO: load from annual_flows_balance_Ethylene.csv
 # ---------------------------------------------------------------------
-'''
-# takes in the raw labels and remaps to desired categories
-def map_macro_ethylene_category(row):
-    sector   = str(row.get("Sector",   "")).strip()
-    category = str(row.get("Category", "")).strip()
-    edge     = str(row.get("Edge",     "")).strip().lower()
-
-    if sector.lower() == "demand":
-        return "Ethylene Demand"
-
-    if sector.lower() == "ethylene":
-        if category == "Electric Steam Cracker":
-            return "Electric Steam Cracker"
-        if category == "Thermal Steam Cracker":
-            return "Thermal Steam Cracker"
-        if category == "Ethanol Dehydration":
-            return "Ethanol Dehydration"
-        if category == "Synthetic Ethylene":
-            return "Synthetic Ethylene"
-
-    # Fallback: infer from edge name
-    if "f_ein" in edge or "f-ein" in edge:
-        return "Electric Steam Cracker"
-    if any(x in edge for x in ["f_ngin", "f-ngin", "f_cc90", "f-cc90",
-                                 "f_h2in", "f-h2in"]):
-        return "Thermal Steam Cracker"
-    if any(x in edge for x in ["b_ngin", "b-ngin", "b_h2in", "b-h2in"]):
-        return "Ethanol Dehydration"
-    if any(x in edge for x in ["s_h2in", "s-h2in", "s_cc90", "s-cc90"]):
-        return "Synthetic Ethylene"
-
-    return None
-'''
-
-ETHYLENE_CATEGORIES = [
-    ("TSC", [
-            r"_F(-|_)NGin_ethylene",           # F-NGin without H2out (the underscore after prevents matching F-NGin-H2out)
-        ]),
-        ("Ret-TSC", [
-            r"_F(-|_)NGin_RETROFIT_ethylene",
-        ]),
-        ("Existing TSC:H2", [
-            r"Existing_.*F(-|_)NGin(-|_)H2out_ethylene",
-        ]),
-        ("TSC:H2", [
-            r"_F(-|_)NGin(-|_)H2out_ethylene",
-        ]),
-        ("Ret-TSC:H2", [
-            r"_F(-|_)NGin(-|_)H2out_RETROFIT_ethylene",  # in case separator varies
-        ]),
-        ("TSC CC90 NGfuel", [
-            r"_F(-|_)CC90(-|_)NGin_ethylene",
-            r"TSC+CC90",
-        ]),
-        ("Ret+TSC CC90 NGfuel", [
-            r"_F(-|_)CC90(-|_)NGin_RETROFIT_ethylene",
-            r"Ret-TSC+CC90",
-        ]),
-        ("TSC+CC90:H2", [
-            r"_F(-|_)CC90(-|_)NGin(-|_)H2out_ethylene",
-        ]),
-        ("Ret-TSC+CC90:H2", [
-            r"_F(-|_)CC90(-|_)NGin(-|_)H2out_RETROFIT_ethylene",
-        ]),
-        ("TSC+H2in", [
-            r"_F(-|_)H2in_ethylene",
-        ]),
-        ("Ret-TSC+H2in", [
-            r"_F(-|_)H2in_RETROFIT_ethylene",
-        ]),
-        ("TSC+H2in:CH4", [
-            r"_F(-|_)H2in(-|_)CH4out_ethylene",
-            r"TSC+H2in:CH4",
-        ]),
-        ("Ret-TSC+H2in:CH4", [
-            r"_F(-|_)H2in(-|_)CH4out_RETROFIT_ethylene",
-            r"RET-TSC+H2in:CH4",
-        ]),
-        ("ESC", [
-            r"(-|_)F(-|_)Ein_ethylene",
-            r"ESC",
-        ]),
-        ("Ret-ESC", [
-            r"(-|_)F(-|_)Ein_RETROFIT_ethylene",
-        ]),
-        ("MS+MTO", [
-            r"_S(-|_)H2in_ethylene",           # S-H2in without CC90
-        ]),
-        ("MS+MTO+CC90", [
-            r"_S(-|_)CC90(-|_)H2in_ethylene",
-        ]),
-        ("Dehydration NGfuel", [
-            r"_B(-|_)NGin_ethylene",
-            r"Bio-eth+CC88:NG",
-        ]),
-        ("Dehydration H2fuel", [
-            r"_B(-|_)H2in_ethylene",
-            r"Bio-eth+CC88:H2",
-        ])
-]
-
-# Pre-compile for performance
-_COMPILED_ETHYLENE_CATEGORIES = [
-    (label, [re.compile(pattern, re.IGNORECASE) for pattern in patterns])
-    for label, patterns in ETHYLENE_CATEGORIES
-]
-
-def map_macro_ethylene_category(row):
-    sector = str(row.get("Sector", "")).strip().lower()
-    edge   = str(row.get("Edge",   "")).strip()
-
-    if sector == "demand":
-        return "Ethylene Demand"
-
-    for label, compiled_patterns in _COMPILED_ETHYLENE_CATEGORIES:
-        if any(pat.search(edge) for pat in compiled_patterns):
-            return label
-
-    return None
 
 macro_eth_tables = []
 
@@ -496,15 +395,22 @@ for scen_short, scen_path in macro_scenario_paths.items():
     macro_eth = pd.read_csv(macro_eth_path)
     macro_eth.columns = macro_eth.columns.str.strip()
 
+    required_cols = ["Edge", "Annual_Flow", "Sector", "Category", "Balance"]
+    missing_cols = [c for c in required_cols if c not in macro_eth.columns]
+
+    if missing_cols:
+        raise ValueError(
+            f"{macro_eth_path} is missing required columns: {missing_cols}. "
+            f"Available columns are: {macro_eth.columns.tolist()}"
+        )
+
+    macro_eth["Scenario"] = scen_short
+
     macro_eth["Annual_Flow"] = pd.to_numeric(
         macro_eth["Annual_Flow"], errors="coerce"
     ).fillna(0.0)
 
-    macro_eth["Scenario"] = scen_short
-
-    macro_eth["Plot_Category"] = macro_eth.apply(
-        map_macro_ethylene_category, axis=1
-    )
+    macro_eth["Plot_Category"] = macro_eth["Category"]
 
     macro_eth = macro_eth[macro_eth["Plot_Category"].notna()].copy()
     macro_eth_tables.append(macro_eth)
@@ -525,6 +431,12 @@ if macro_eth_tables:
     )
 else:
     macro_combined_data = pd.DataFrame(index=scenario_names)
+
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        # NSD file values are in the same raw units as Annual_Flow (no conversion)
+        nsd = load_annual_nsd(scen_path, "ethylene_demand_")
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
 
 
 # ---------------------------------------------------------------------
@@ -552,15 +464,39 @@ print(macro_combined_data)
 
 
 # ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario (MACRO)
+# ---------------------------------------------------------------------
+print("Ethylene balance check:")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} tonnes, "
+        f"Demand={total_negative:+.4f} tonnes, "
+        f"Net={net:+.4f} tonnes  [{status}]"
+    )
+
+
+# ---------------------------------------------------------------------
 # Existing steam cracker capacity (same calculation as ETHYLENE_Macro.py)
 # ---------------------------------------------------------------------
 
 _t_ethane_p_t_ethylene = 1.4277269  # t-ethane/t-ethylene
-_mwh_ethane_p_t_ethane = 13.19      # MWh-ethane/t-ethane (LHV)
+_mwh_ethane_p_t_ethane = 14.41666667      # MWh-ethane/t-ethane (LHV)
+
+# Strip the trailing "/results_NNN/results" the same way Step_1's
+# macro_input_paths does, but computed locally from our own manual
+# macro_scenario_paths so this doesn't depend on Step_1's scenario list.
+_macro_input_path = re.sub(
+    r"/results_\d+/results$", "", macro_scenario_paths[scenario_names[0]]
+)
 
 _crackers_json_path = os.path.join(
     macro_base_dir,
-    macro_input_paths[scenario_names[0]],
+    _macro_input_path,
     "assets",
     "existing_steam_crackers.json",
 )

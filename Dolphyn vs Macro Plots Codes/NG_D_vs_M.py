@@ -16,17 +16,29 @@ plt.rcParams["font.family"] = "Arial"
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from Step_1_Process_Macro_Flows_and_Balance_Demand import (
-    dolphyn_base_dir, macro_base_dir,
-    dolphyn_results_folder, scenario_names,
+    macro_base_dir,
+    dolphyn_results_folder, load_annual_nsd,
 )
 
+# Fully manual/self-contained: dolphyn_scenario_paths and
+# macro_scenario_paths are the source of truth for which scenarios this
+# script compares. scenario_names is derived from them directly rather
+# than imported from Step_1, so this script doesn't silently break or
+# go stale whenever Step_1's shared scenario config changes.
+
 dolphyn_scenario_paths = {
-    "1": f'all_demand_test/{dolphyn_results_folder}',
+    "1": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
+    "2": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
+    "3": "/Users/abbie/Desktop/Dolphyn_to_Macro/Chaitanya_5_23/dolphyn/ethylene_only_test/",
 }
 
 macro_scenario_paths = {
-    "1": f"6_15_168_restart_all_demand/results_001/results",
+    "1": f"7_1_DOLPHYN_B2/results_001/results",
+    "2": f"7_1_DOLPHYN_B2/results_002/results",
+    "3": f"7_1_DOLPHYN_B2/results_003/results",
 }
+
+scenario_names = list(dolphyn_scenario_paths.keys())
 
 # Dolphyn NG_Balance values are treated as MMBtu.
 MMBTU_TO_EJ = 0.293071 * 3.6e-9
@@ -39,12 +51,14 @@ MWH_TO_EJ = 3.6e-9
 # ---------------------------------------------------------------------
 
 # Dolphyn columns of interest
-columns_of_interest = ["Syn_NG", "Bio_NG", "Conventional_NG", "NG_Demand", "Power", "H2", "CSC", "BESC", "Ethylene"]
+columns_of_interest = ["Syn_NG", "Bio_NG", "Conventional_NG", "NG_Demand", "Power", "H2", "CSC", "BESC", "Ethylene Production", "Ethylene Consumption"]
 
 # Desired plotting order
 desired_order = [
     "NG_Demand",
-    "Ethylene",
+    "Non-Served Demand",
+    "Ethylene Production",
+    "Ethylene Consumption",
     "Power",
     "H2",
     "CSC",
@@ -56,16 +70,18 @@ desired_order = [
 ]
 
 category_colors = {
-    "Syn_NG": "violet",
-    "Bio_NG": "seagreen",
-    "Conventional_NG": "lightgrey",
+    "Syn_NG": "#e8905a",
+    "Bio_NG": "mediumseagreen",
+    "Conventional_NG": "#c0504d",
     "NG_Demand": "bisque",
+    "Non-Served Demand": "red",
     "Power": "orange",
     "H2": "deepskyblue",
     "CSC": "darkblue",
-    "BESC": "mediumseagreen",
-    "Ethylene": "lightsalmon",
-    "Ethanol": "lightsalmon",
+    "BESC": "seagreen",
+    "Ethylene Production": "#e8630a",
+    "Ethylene Consumption": "#7a2e0e",
+    "Ethanol": "#d4a017",
 }
 
 # this only replaces the legend labels
@@ -74,12 +90,14 @@ category_names = {
     "Bio_NG": "Bio NG",
     "Conventional_NG": "Fossil NG",
     "NG_Demand": "Demand",
+    "Non-Served Demand": "Non-Served Demand",
     "Power": "Power Sector",
     "H2": "H2 Sector",
     "CSC": "Solvent DAC",
     "BESC": "Bio NG Prod.",
-    "Ethylene": "Ethylene",
-    "Ethanol": "Ethanol",
+    "Ethylene Production": "Ethylene Sector (Production)",
+    "Ethylene Consumption": "Ethylene Sector (Consumption)",
+    "Ethanol": "Ethanol Sector",
 }
 
 # ---------------------------------------------------------------------
@@ -90,8 +108,8 @@ global_values_per_scenario = {}
 
 for scenario, scen_folder in dolphyn_scenario_paths.items():
     path = os.path.join(
-        dolphyn_base_dir,
         scen_folder,
+        dolphyn_results_folder,
         "Results_NG/NG_Balance.csv",
     )
     if not os.path.exists(path):
@@ -183,7 +201,11 @@ def map_macro_ng_category(row):
         return "BESC"
 
     if sector == "Ethylene":
-        return "Ethylene"
+        try:
+            flow = float(row.get("Annual_Flow", 0.0))
+        except (TypeError, ValueError):
+            flow = 0.0
+        return "Ethylene Production" if flow >= 0 else "Ethylene Consumption"
 
     if sector == "Ethanol":
         return "Ethanol"
@@ -253,6 +275,11 @@ for col in desired_order:
     if col not in macro_combined_data.columns:
         macro_combined_data[col] = 0.0
 
+for scen_short, scen_path in macro_scenario_paths.items():
+    if scen_short in macro_combined_data.index:
+        nsd = load_annual_nsd(scen_path, ["ng_", "natgas_"]) * MWH_TO_EJ
+        macro_combined_data.loc[scen_short, "Non-Served Demand"] = nsd
+
 macro_combined_data = macro_combined_data[desired_order]
 
 
@@ -265,6 +292,22 @@ print(dolphyn_combined_data)
 
 print("\nMACRO NG balance by scenario (EJ):")
 print(macro_combined_data)
+
+# ---------------------------------------------------------------------
+# Balance check: sum of positives vs negatives per scenario (MACRO)
+# ---------------------------------------------------------------------
+print("Natural Gas balance check (MACRO):")
+for scen in macro_combined_data.index:
+    row = macro_combined_data.loc[scen]
+    total_positive = row[row > 0].sum()
+    total_negative = row[row < 0].sum()
+    net = total_positive + total_negative
+    status = "✓ BALANCED" if abs(net) < 0.01 else "✗ IMBALANCE"
+    print(
+        f"  {scen}: Supply={total_positive:+.4f} EJ, "
+        f"Demand={total_negative:+.4f} EJ, "
+        f"Net={net:+.4f} EJ  [{status}]"
+    )
 
 
 # ---------------------------------------------------------------------
