@@ -26,8 +26,8 @@ _scenarios = [
     #("6g", "6_29_SCENARIODEMONSTRATION/6g_ethylene/results_001/results", "system"),
     #("7", "6_29_SCENARIODEMONSTRATION/7_ethylene/results_001/results", "system"),
     #("7a", "6_29_SCENARIODEMONSTRATION/7a_ethylene/results_001/results", "system"),
-    ("8", "6_29_SCENARIODEMONSTRATION/8_noCC/results_001/results", "system"),
-    ("8a", "6_29_SCENARIODEMONSTRATION/8a_noCC/results_001/results", "system"),
+    #("8", "6_29_SCENARIODEMONSTRATION/8_noCC/results_001/results", "system"),
+    #("8a", "6_29_SCENARIODEMONSTRATION/8a_noCC/results_001/results", "system"),
 ]
 
 carbon_end_use_dict = { # tonne CO2/MWh fuel using molar ratios

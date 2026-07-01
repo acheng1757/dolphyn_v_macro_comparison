@@ -12,7 +12,86 @@ sys.path.append(REPO_ROOT)
 from Step_1_Process_Macro_Flows_and_Balance_Demand import macro_base_dir, scenario_names, macro_input_paths
 
 
-def json_to_csv_transforms(json_data, output_path=None, field_map=None):
+# ── DEFAULT FIELD MAP ──────────────────────────────────────────────────────
+DEFAULT_FIELD_MAP = [
+    ("id",                                          "id",                          "id"),
+    ("commodity",                                   "edge:ethane_consumption_edge", "commodity"),
+    ("h2_consumption",             "transforms",                  "h2_consumption"),
+    ("h2_production",              "transforms",                  "h2_production"),
+    ("elec_consumption",           "transforms",                  "elec_consumption"),
+    ("ethylene_production", "transforms",                  "ethylene_production"),
+    ("natgas_consumption",         "transforms",                  "natgas_consumption"),
+    ("natgas_production",          "transforms",                  "natgas_production"),
+    ("process_capture_rate",             "transforms",                  "process_capture_rate"),
+    ("process_emission_rate",            "transforms",                  "process_emission_rate"),
+    ("fuel_capture_rate",             "transforms",                  "fuel_capture_rate"),
+    ("fuel_emission_rate",            "transforms",                  "fuel_emission_rate"),
+    ("investment_cost",        "edge:ethane_consumption_edge", "investment_cost"),
+    ("fixed_om_cost",          "edge:ethane_consumption_edge", "fixed_om_cost"),
+    ("variable_om_cost",             "edge:ethane_consumption_edge", "variable_om_cost"),
+]
+# ──────────────────────────────────────────────────────────────────────────
+
+# Zones whose steam-cracker retrofit options should be pulled into the CSV.
+RETROFIT_ZONES = {"TX", "NCEN", "CEN", "SE", "MIDAT"}
+
+
+def retrofit_rows_from_existing(existing_json_data, retrofit_json_data, field_map=None):
+    """
+    Build one CSV row per retrofit option found in existing_json_data's
+    "retrofit_options" lists, restricted to RETROFIT_ZONES.
+
+    Each row reuses the field values of the matching instance in
+    retrofit_json_data (matched via "template_id" == that instance's "id"),
+    except "investment_cost", which comes from the retrofit option's own
+    edges.ethane_consumption_edge.investment_cost in existing_json_data.
+    """
+    if field_map is None:
+        field_map = DEFAULT_FIELD_MAP
+
+    retrofit_templates = {}
+    for asset_type, asset_list in retrofit_json_data.items():
+        for asset in asset_list:
+            for instance in asset.get("instance_data", []):
+                retrofit_templates[instance["id"]] = instance
+
+    rows = []
+    for asset_type, asset_list in existing_json_data.items():
+        for asset in asset_list:
+            for instance in asset.get("instance_data", []):
+                for option in instance.get("retrofit_options", []):
+                    template_id = option["template_id"]
+                    zone = template_id.split("_F-")[0]
+                    if zone not in RETROFIT_ZONES:
+                        continue
+
+                    template = retrofit_templates.get(template_id)
+                    if template is None:
+                        print(f"Warning: no steamcracker_retrofit_option template found for template_id '{template_id}'")
+                        continue
+
+                    transforms = template.get("transforms", {})
+                    edges = template.get("edges", {})
+
+                    row = {}
+                    for col_name, source, json_key in field_map:
+                        if source == "id":
+                            row[col_name] = option.get(json_key)
+                        elif source == "transforms":
+                            row[col_name] = transforms.get(json_key)
+                        elif source.startswith("edge:"):
+                            edge_name = source[len("edge:"):]
+                            row[col_name] = edges.get(edge_name, {}).get(json_key)
+                        else:
+                            raise ValueError(f"Unknown source '{source}' for column '{col_name}'")
+
+                    row["investment_cost"] = option["edges"]["ethane_consumption_edge"]["investment_cost"]
+                    rows.append(row)
+
+    return rows
+
+
+def json_to_csv_transforms(json_data, output_path=None, field_map=None, extra_rows=None):
     """
     Parse JSON and extract fields per instance, with customizable field mapping.
 
@@ -24,32 +103,10 @@ def json_to_csv_transforms(json_data, output_path=None, field_map=None):
                      "id"        → instance.get(json_key)
                      "transforms"→ instance["transforms"].get(json_key)
                      "edge:<name>"→ instance["edges"]["<name>"].get(json_key)
-                   If None, uses the default mapping below.
+                   If None, uses DEFAULT_FIELD_MAP.
+        extra_rows: optional list of pre-built row dicts to append after the
+                    rows extracted from json_data.
     """
-
-    # ── DEFAULT FIELD MAP ──────────────────────────────────────────────────────
-    # For assets whose fields are nested under "transforms"/"edges"
-    # (e.g. existing_drymill.json, drymill_ccs_retrofit_option.json).
-    # Each entry: (output column name, source, json key)
-    # source = "id" | "transforms" | "edge:<edge_name>"
-    DEFAULT_FIELD_MAP = [
-        ("id",                                          "id",                          "id"),
-        ("commodity",                                   "edge:ethane_consumption_edge", "commodity"),
-        ("h2_consumption",             "transforms",                  "h2_consumption"),
-        ("h2_production",              "transforms",                  "h2_production"),
-        ("elec_consumption",           "transforms",                  "elec_consumption"),
-        ("ethylene_production", "transforms",                  "ethylene_production"),
-        ("natgas_consumption",         "transforms",                  "natgas_consumption"),
-        ("natgas_production",          "transforms",                  "natgas_production"),
-        ("process_capture_rate",             "transforms",                  "process_capture_rate"),
-        ("process_emission_rate",            "transforms",                  "process_emission_rate"),
-        ("fuel_capture_rate",             "transforms",                  "fuel_capture_rate"),
-        ("fuel_emission_rate",            "transforms",                  "fuel_emission_rate"),
-        ("investment_cost",        "edge:ethane_consumption_edge", "investment_cost"),
-        ("fixed_om_cost",          "edge:ethane_consumption_edge", "fixed_om_cost"),
-        ("variable_om_cost",             "edge:ethane_consumption_edge", "variable_om_cost"),
-    ]
-    # ──────────────────────────────────────────────────────────────────────────
 
     if field_map is None:
         field_map = DEFAULT_FIELD_MAP
@@ -81,6 +138,9 @@ def json_to_csv_transforms(json_data, output_path=None, field_map=None):
 
                 rows.append(row)
 
+    if extra_rows:
+        rows.extend(extra_rows)
+
     if output_path:
         with open(output_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=output_cols)
@@ -103,11 +163,6 @@ ASSET_FILES = [
 ]
 
 if __name__ == "__main__":
-    # Clear outputs from any previous run before regenerating — case folders
-    # created below, plus the downstream LCOE_SC_ESC_<case>.csv/.xlsx files
-    # produced by b_csv_to_xlsx.py / c_duals_to_xlsx.py. Cases come from
-    # scenario_names, which changes over time, so a case removed from there
-    # would otherwise leave its old outputs behind forever.
     for entry in os.listdir(SCRIPT_DIR):
         if entry == "__pycache__" or entry.startswith("."):
             continue
@@ -133,6 +188,15 @@ if __name__ == "__main__":
                 continue
             with open(json_path) as f:
                 data = json.load(f)
-            json_to_csv_transforms(data, output_path=os.path.join(out_dir, csv_name), field_map=field_map)
+
+            extra_rows = None
+            if json_name == "existing_steam_crackers.json":
+                retrofit_json_path = os.path.join(assets_dir, "steamcracker_retrofit_option.json")
+                if os.path.exists(retrofit_json_path):
+                    with open(retrofit_json_path) as f:
+                        retrofit_data = json.load(f)
+                    extra_rows = retrofit_rows_from_existing(data, retrofit_data, field_map)
+
+            json_to_csv_transforms(data, output_path=os.path.join(out_dir, csv_name), field_map=field_map, extra_rows=extra_rows)
 
     print("DONE JSON TURNED TO CSV FOR ALL SCENARIOS")

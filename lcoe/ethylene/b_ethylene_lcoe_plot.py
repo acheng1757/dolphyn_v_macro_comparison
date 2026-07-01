@@ -58,13 +58,11 @@ ETHANOL_LABEL_COLOR = "gold"   # x-axis tick label color for any asset id contai
 # "Existing"-capacity assets as a genuinely separate edge from the
 # new-build one for the same code (e.g. "Existing_NE_F-NGin-H2out_..." vs
 # "NE_F-NGin-H2out_..."), matching the LCOE table's own distinct
-# "Existing_"-prefixed rows — so that prefix is matched as-is, not
-# stripped. RETROFIT options, in contrast, have no separate LCOE row of
-# their own — the LCOE table's plain (non-"Existing_") row is meant to
-# cover either new-build or retrofit for that code — so "_RETROFIT" is
-# stripped out of those edge names to merge them into the same key as the
-# new-build edge. The 1.0-tonne threshold mirrors ETHYLENE_Macro.py's own
-# noise cutoff for "active" categories.
+# "Existing_"-prefixed rows, and RETROFIT options now have their own
+# distinct "_RETROFIT"-suffixed LCOE row too — so edge names are matched
+# as-is against the LCOE table's ids, with no stripping. The 1.0-tonne
+# threshold mirrors ETHYLENE_Macro.py's own noise cutoff for "active"
+# categories.
 PRODUCTION_EDGE_SUFFIX = "_ethylene_production_edge"
 PRODUCTION_FLOW_THRESHOLD = 100000.0
 PRODUCTION_CHECKMARK = " ✓"
@@ -79,7 +77,7 @@ PRODUCTION_HIGHLIGHT_STYLE = "color:#008000;font-weight:bold"
 
 
 def get_produced_edges(label):
-    """Returns the set of MACRO ethylene production Edge names (RETROFIT merged into new-build) with non-negligible flow for this scenario."""
+    """Returns the set of MACRO ethylene production Edge names with non-negligible flow for this scenario."""
     scenario_path = MACRO_SCENARIO_PATHS.get(label)
     if scenario_path is None:
         return set()
@@ -94,7 +92,7 @@ def get_produced_edges(label):
     balance_df = pd.read_csv(balance_path)
     balance_df.columns = balance_df.columns.str.strip()
     produced = balance_df.loc[balance_df["Annual_Flow"].abs() > PRODUCTION_FLOW_THRESHOLD, "Edge"]
-    return set(produced.str.replace("_RETROFIT", "", regex=False))
+    return set(produced)
 
 # Shared with b_ethanol_lcoe_plot.py so both charts read consistently. All
 # feedstock consumption is green (shade varies by carrier); byproduct
